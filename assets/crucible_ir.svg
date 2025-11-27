@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+<title>CrucibleIR Hexagonal Mark</title>
+<desc>Hexagonal emblem for CrucibleIR showing layered intermediate representations, reliable dataflows, and a crucible core.</desc>
+<defs>
+  <linearGradient id="bgGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#0b1e2f"/>
+    <stop offset="45%" stop-color="#0c2c46"/>
+    <stop offset="100%" stop-color="#071827"/>
+  </linearGradient>
+  <linearGradient id="borderGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#4ad5ff"/>
+    <stop offset="55%" stop-color="#56e6c7"/>
+    <stop offset="100%" stop-color="#f4d279"/>
+  </linearGradient>
+  <linearGradient id="innerStroke" x1="0%" y1="100%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#0ef3ff" stop-opacity="0.4"/>
+    <stop offset="100%" stop-color="#f6f6f6" stop-opacity="0.55"/>
+  </linearGradient>
+  <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#3ee7f0"/>
+    <stop offset="50%" stop-color="#5cf6b7"/>
+    <stop offset="100%" stop-color="#f6c960"/>
+  </linearGradient>
+  <linearGradient id="layerGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#142b40"/>
+    <stop offset="100%" stop-color="#1e3e5a"/>
+  </linearGradient>
+  <linearGradient id="coreGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#7df5d0" stop-opacity="0.95"/>
+    <stop offset="100%" stop-color="#25c2ff" stop-opacity="0.9"/>
+  </linearGradient>
+  <radialGradient id="halo" cx="50%" cy="48%" r="52%">
+    <stop offset="0%" stop-color="#7cf3d2" stop-opacity="0.16"/>
+    <stop offset="100%" stop-color="#7cf3d2" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="irPulse" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#f9e6b0" stop-opacity="0.8"/>
+    <stop offset="100%" stop-color="#f9e6b0" stop-opacity="0"/>
+  </radialGradient>
+  <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+    <path d="M1 1 L7 4 L1 7 Z" fill="#f4d279"/>
+  </marker>
+  <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+</defs>
+<g>
+  <polygon points="256 20 440 130 440 320 256 430 72 320 72 130" fill="url(#bgGradient)" stroke="url(#borderGradient)" stroke-width="14" stroke-linejoin="round"/>
+  <polygon points="256 48 412 138 412 310 256 402 100 310 100 138" fill="none" stroke="url(#innerStroke)" stroke-width="6" stroke-linejoin="round" stroke-dasharray="10 10" opacity="0.75"/>
+  <polygon points="256 64 392 144 392 296 256 378 120 296 120 144" fill="none" stroke="#0ef3ff" stroke-width="2" stroke-linejoin="round" opacity="0.35"/>
+</g>
+<g>
+  <circle cx="256" cy="232" r="170" fill="url(#halo)"/>
+  <path d="M256 82 L366 145 L366 275 L256 339 L146 275 L146 145 Z" fill="none" stroke="#5cf6b7" stroke-width="2" stroke-dasharray="4 6" opacity="0.45"/>
+</g>
+<g stroke-linecap="round" stroke-linejoin="round">
+  <path d="M152 190 Q206 184 256 206 Q306 184 360 190" fill="none" stroke="url(#flowGradient)" stroke-width="3" opacity="0.65"/>
+  <path d="M152 242 Q206 236 256 258 Q306 236 360 242" fill="none" stroke="#4ad5ff" stroke-width="3" opacity="0.5" stroke-dasharray="6 6"/>
+  <path d="M152 294 Q206 288 256 310 Q306 288 360 294" fill="none" stroke="#f4d279" stroke-width="3" opacity="0.55" stroke-dasharray="2 8"/>
+</g>
+<g stroke="url(#flowGradient)" stroke-width="4" fill="none" marker-end="url(#arrowhead)" opacity="0.9">
+  <path d="M126 212 C180 212 200 190 230 190" />
+  <path d="M386 212 C332 212 312 190 282 190" />
+  <path d="M126 260 C180 260 200 238 230 238" />
+  <path d="M386 260 C332 260 312 238 282 238" />
+  <path d="M126 308 C180 308 200 286 230 286" />
+  <path d="M386 308 C332 308 312 286 282 286" />
+</g>
+<g opacity="0.8">
+  <rect x="198" y="176" width="116" height="24" rx="6" fill="url(#layerGradient)" stroke="#5cf6b7" stroke-width="2"/>
+  <rect x="198" y="224" width="116" height="28" rx="6" fill="url(#layerGradient)" stroke="#4ad5ff" stroke-width="2"/>
+  <rect x="198" y="276" width="116" height="28" rx="6" fill="url(#layerGradient)" stroke="#f4d279" stroke-width="2"/>
+  <rect x="208" y="196" width="96" height="4" fill="#4ad5ff" opacity="0.7"/>
+  <rect x="208" y="246" width="96" height="4" fill="#5cf6b7" opacity="0.7"/>
+  <rect x="208" y="298" width="96" height="4" fill="#f4d279" opacity="0.7"/>
+</g>
+<g fill="url(#coreGlow)" stroke="#0b1e2f" stroke-width="2" filter="url(#softGlow)">
+  <path d="M256 154 L292 176 L292 210 L256 232 L220 210 L220 176 Z" opacity="0.92"/>
+  <path d="M256 246 L300 272 L300 310 L256 336 L212 310 L212 272 Z" opacity="0.92"/>
+</g>
+<g fill="#0b1e2f" stroke="url(#flowGradient)" stroke-width="3" opacity="0.95">
+  <circle cx="256" cy="188" r="12"/>
+  <circle cx="256" cy="236" r="12"/>
+  <circle cx="256" cy="288" r="12"/>
+</g>
+<g fill="#f9e6b0" opacity="0.7">
+  <circle cx="256" cy="188" r="6"/>
+  <circle cx="256" cy="236" r="6"/>
+  <circle cx="256" cy="288" r="6"/>
+</g>
+<g stroke="url(#flowGradient)" stroke-width="3" fill="none" opacity="0.9">
+  <path d="M256 128 L256 344" stroke-dasharray="8 6"/>
+  <path d="M214 160 L256 188 L298 160" stroke-opacity="0.7"/>
+  <path d="M214 212 L256 240 L298 212" stroke-opacity="0.7"/>
+  <path d="M214 264 L256 292 L298 264" stroke-opacity="0.7"/>
+</g>
+<g opacity="0.35">
+  <path d="M152 166 L256 226 L360 166" fill="none" stroke="#7cf3d2" stroke-width="2" stroke-dasharray="5 9"/>
+  <path d="M152 334 L256 274 L360 334" fill="none" stroke="#7cf3d2" stroke-width="2" stroke-dasharray="5 9"/>
+  <circle cx="256" cy="236" r="140" fill="url(#irPulse)"/>
+</g>
+</svg>
