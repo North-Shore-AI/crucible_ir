@@ -21,8 +21,10 @@ Full docs: https://hexdocs.pm/crucible_ir
 
 - **Experiment Definition**: Complete experiment specifications with backends, pipelines, and datasets
 - **Reliability Configurations**: Ensemble voting, hedging, statistical testing, fairness, and guardrails
+- **Validation**: Built-in validation for all IR structs with detailed error messages
+- **JSON Serialization**: Bidirectional JSON conversion with automatic type handling
+- **Fluent Builder API**: Chainable, ergonomic experiment construction
 - **Type Safety**: Full type specifications for all structs
-- **JSON Serialization**: All structs derive `Jason.Encoder` for easy serialization
 - **Comprehensive Documentation**: 100% documentation coverage with examples
 
 ## Installation
@@ -32,7 +34,7 @@ Add `crucible_ir` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:crucible_ir, "~> 0.1.0"}
+    {:crucible_ir, "~> 0.1.1"}
   ]
 end
 ```
@@ -120,6 +122,95 @@ experiment = %{experiment |
   - **Stats**: `tests` (default `[:ttest, :bootstrap]`), `alpha` (default `0.05`), `confidence_level`, `effect_size_type`, `multiple_testing_correction`, `bootstrap_iterations`, `options`.
   - **Fairness**: `enabled` (default `false`), `metrics`, `group_by`, `threshold`, `fail_on_violation`, `options`.
   - **Guardrail**: `profiles` (default `[:default]`), `prompt_injection_detection`, `jailbreak_detection`, `pii_detection`, `pii_redaction`, `content_moderation`, `fail_on_detection`, `options`.
+
+## New in v0.1.1
+
+### Validation
+
+Validate experiments before execution:
+
+```elixir
+alias CrucibleIR.{Experiment, BackendRef, StageDef}
+
+# Valid experiment
+exp = %Experiment{
+  id: :test,
+  backend: %BackendRef{id: :gpt4},
+  pipeline: [%StageDef{name: :run}]
+}
+
+{:ok, ^exp} = CrucibleIR.validate(exp)
+true = CrucibleIR.valid?(exp)
+
+# Invalid experiment
+invalid = %Experiment{id: :test, backend: nil, pipeline: nil}
+{:error, errors} = CrucibleIR.validate(invalid)
+# errors: ["backend is required", "pipeline must be a list"]
+```
+
+### JSON Serialization
+
+Serialize to/from JSON with automatic type conversion:
+
+```elixir
+alias CrucibleIR.{Experiment, BackendRef, StageDef}
+
+# Create experiment
+exp = %Experiment{
+  id: :test,
+  backend: %BackendRef{id: :gpt4},
+  pipeline: [%StageDef{name: :inference}]
+}
+
+# Serialize to JSON
+json = CrucibleIR.to_json(exp)
+
+# Deserialize from JSON
+{:ok, decoded} = CrucibleIR.from_json(json, Experiment)
+decoded.id == :test  # true
+decoded.backend.id == :gpt4  # true
+
+# Works with nested structs and reliability configs
+```
+
+### Fluent Builder API
+
+Build experiments with a chainable, ergonomic API:
+
+```elixir
+alias CrucibleIR.Builder
+
+{:ok, exp} =
+  Builder.experiment(:comprehensive_test)
+  |> Builder.with_description("Production reliability test")
+  |> Builder.with_backend(:gpt4, profile: :fast)
+  |> Builder.add_stage(:preprocessing, options: %{normalize: true})
+  |> Builder.add_stage(:inference)
+  |> Builder.add_stage(:postprocessing)
+  |> Builder.with_dataset(:mmlu, split: :test)
+  |> Builder.with_ensemble(:majority, models: [:gpt4, :claude])
+  |> Builder.with_hedging(:fixed, delay_ms: 100)
+  |> Builder.with_stats([:ttest, :bootstrap], alpha: 0.01)
+  |> Builder.with_fairness(metrics: [:demographic_parity], threshold: 0.8)
+  |> Builder.with_guardrails(profiles: [:strict], pii_detection: true)
+  |> Builder.add_output(:results, formats: [:json, :html])
+  |> Builder.build()  # Validates and returns {:ok, exp} or {:error, errors}
+
+# Builder automatically validates - build() returns errors if invalid
+{:error, errors} =
+  Builder.experiment(:invalid)
+  |> Builder.build()  # Missing backend and pipeline
+```
+
+Or use the convenience function from the main module:
+
+```elixir
+{:ok, exp} =
+  CrucibleIR.experiment(:my_test)
+  |> Builder.with_backend(:gpt4)
+  |> Builder.add_stage(:inference)
+  |> Builder.build()
+```
 
 ## Examples
 
@@ -243,7 +334,13 @@ All modules have comprehensive test coverage:
 mix test
 ```
 
-Current test stats: **78 tests, 0 failures** (3 doctests, 75 unit tests)
+Current test stats: **174 tests, 0 failures** (6 doctests + 168 unit tests)
+
+New in v0.1.1:
+- 41 validation tests
+- 26 serialization tests
+- 29 builder tests
+- 3 new doctests
 
 ## Documentation
 

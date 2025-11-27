@@ -91,4 +91,96 @@ defmodule CrucibleIR do
   def new_experiment(attrs) when is_list(attrs) do
     struct!(Experiment, attrs)
   end
+
+  # Validation functions
+
+  @doc """
+  Validates a struct, returns `{:ok, struct}` or `{:error, errors}`.
+
+  Delegates to `CrucibleIR.Validation.validate/1`.
+
+  ## Examples
+
+      iex> alias CrucibleIR.{Experiment, BackendRef, StageDef}
+      iex> exp = %Experiment{
+      ...>   id: :test,
+      ...>   backend: %BackendRef{id: :gpt4},
+      ...>   pipeline: [%StageDef{name: :run}]
+      ...> }
+      iex> {:ok, _} = CrucibleIR.validate(exp)
+  """
+  defdelegate validate(struct), to: CrucibleIR.Validation
+
+  @doc """
+  Returns `true` if struct is valid, `false` otherwise.
+
+  Delegates to `CrucibleIR.Validation.valid?/1`.
+
+  ## Examples
+
+      iex> alias CrucibleIR.BackendRef
+      iex> CrucibleIR.valid?(%BackendRef{id: :gpt4})
+      true
+  """
+  defdelegate valid?(struct), to: CrucibleIR.Validation
+
+  # Serialization functions
+
+  @doc """
+  Encodes a struct to JSON string.
+
+  Delegates to `CrucibleIR.Serialization.to_json/1`.
+
+  ## Examples
+
+      iex> alias CrucibleIR.BackendRef
+      iex> json = CrucibleIR.to_json(%BackendRef{id: :gpt4})
+      iex> is_binary(json)
+      true
+  """
+  defdelegate to_json(struct), to: CrucibleIR.Serialization
+
+  @doc """
+  Decodes JSON string to struct of given type.
+
+  Delegates to `CrucibleIR.Serialization.from_json/2`.
+
+  ## Examples
+
+      iex> alias CrucibleIR.BackendRef
+      iex> json = ~s({"id":"gpt4","profile":"default"})
+      iex> {:ok, backend} = CrucibleIR.from_json(json, BackendRef)
+      iex> backend.id
+      :gpt4
+  """
+  defdelegate from_json(json, type), to: CrucibleIR.Serialization
+
+  @doc """
+  Converts a map to struct of given type.
+
+  Delegates to `CrucibleIR.Serialization.from_map/2`.
+
+  ## Examples
+
+      iex> alias CrucibleIR.BackendRef
+      iex> {:ok, backend} = CrucibleIR.from_map(%{"id" => "gpt4"}, BackendRef)
+      iex> backend.id
+      :gpt4
+  """
+  defdelegate from_map(map, type), to: CrucibleIR.Serialization
+
+  # Builder convenience
+
+  @doc """
+  Creates a new experiment builder with the given ID.
+
+  Delegates to `CrucibleIR.Builder.experiment/1`.
+
+  ## Examples
+
+      iex> exp = CrucibleIR.experiment(:test)
+      iex> exp.id
+      :test
+  """
+  defdelegate experiment(id), to: CrucibleIR.Builder
 end
