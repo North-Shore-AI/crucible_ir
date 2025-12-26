@@ -11,6 +11,9 @@ defmodule CrucibleIR.DatasetRef do
   - `:name` - The dataset name (required)
   - `:split` - The dataset split to use (default: `:train`)
   - `:options` - Additional dataset-specific options
+  - `:version` - Dataset version
+  - `:format` - Data format (parquet, csv, jsonl, arrow)
+  - `:schema` - Expected schema
 
   ## Examples
 
@@ -31,6 +34,9 @@ defmodule CrucibleIR.DatasetRef do
   @enforce_keys [:name]
   defstruct [
     :name,
+    :version,
+    :format,
+    :schema,
     provider: :crucible_datasets,
     split: :train,
     options: nil
@@ -38,11 +44,15 @@ defmodule CrucibleIR.DatasetRef do
 
   @type provider :: :crucible_datasets | :huggingface | atom()
   @type split :: :train | :test | :validation | atom()
+  @type format :: :parquet | :csv | :jsonl | :arrow | atom()
 
   @type t :: %__MODULE__{
           provider: provider(),
           name: atom(),
           split: split(),
-          options: map() | nil
+          options: map() | nil,
+          version: String.t() | nil,
+          format: format() | nil,
+          schema: map() | nil
         }
 end

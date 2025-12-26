@@ -15,6 +15,17 @@ defmodule CrucibleIR do
   - `CrucibleIR.OutputSpec` - Output specification
   - `CrucibleIR.Reliability.Config` - Container for reliability configurations
 
+  ## Model Lifecycle (v0.2.0)
+
+  - `CrucibleIR.ModelRef` - Reference to a registered model
+  - `CrucibleIR.ModelVersion` - Specific model version
+  - `CrucibleIR.Training.Config` - Training configuration
+  - `CrucibleIR.Training.Run` - Training execution record
+  - `CrucibleIR.Deployment.Config` - Deployment configuration
+  - `CrucibleIR.Deployment.Status` - Deployment status
+  - `CrucibleIR.Feedback.Event` - Feedback data point
+  - `CrucibleIR.Feedback.Config` - Feedback collection configuration
+
   ## Reliability Mechanisms
 
   - `CrucibleIR.Reliability.Ensemble` - Ensemble voting configuration

@@ -21,6 +21,7 @@ defmodule CrucibleIR.Reliability.Hedging do
   - `:percentile` - Delay based on percentile latency
   - `:adaptive` - Adapt delay based on observed latency
   - `:workload_aware` - Consider workload characteristics
+  - `:exponential_backoff` - Adaptive backoff based on success/failure patterns
   """
 
   @derive Jason.Encoder
@@ -31,7 +32,8 @@ defmodule CrucibleIR.Reliability.Hedging do
             budget_percent: nil,
             options: nil
 
-  @type strategy :: :off | :fixed | :percentile | :adaptive | :workload_aware
+  @type strategy ::
+          :off | :fixed | :percentile | :adaptive | :workload_aware | :exponential_backoff
 
   @type t :: %__MODULE__{
           strategy: strategy(),

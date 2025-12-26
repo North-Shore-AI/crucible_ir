@@ -27,19 +27,31 @@ defmodule CrucibleIR.Serialization do
   """
 
   alias CrucibleIR.{Experiment, BackendRef, StageDef, DatasetRef, OutputSpec}
+  alias CrucibleIR.{ModelRef, ModelVersion}
+  alias CrucibleIR.Training
+  alias CrucibleIR.Deployment
+  alias CrucibleIR.Feedback
   alias CrucibleIR.Reliability.{Config, Ensemble, Hedging, Stats, Fairness, Guardrail}
 
-  @experiment_fields ~w(id backend pipeline description owner tags metadata dataset reliability outputs created_at updated_at)a
-  @backend_ref_fields ~w(id profile options)a
+  @experiment_fields ~w(id backend pipeline description owner tags metadata dataset reliability outputs created_at updated_at experiment_type model_version training_config baseline)a
+  @backend_ref_fields ~w(id profile options model_version endpoint_url deployment_id fallback)a
   @stage_def_fields ~w(name module options enabled)a
-  @dataset_ref_fields ~w(name provider split options)a
+  @dataset_ref_fields ~w(name provider split options version format schema)a
   @output_spec_fields ~w(name formats sink options)a
-  @config_fields ~w(ensemble hedging guardrails stats fairness)a
+  @config_fields ~w(ensemble hedging guardrails stats fairness monitoring drift circuit_breaker feedback)a
   @ensemble_fields ~w(strategy execution_mode models weights min_agreement timeout_ms options)a
   @hedging_fields ~w(strategy delay_ms percentile max_hedges budget_percent options)a
   @stats_fields ~w(tests alpha confidence_level effect_size_type multiple_testing_correction bootstrap_iterations options)a
   @fairness_fields ~w(enabled metrics group_by threshold fail_on_violation options)a
   @guardrail_fields ~w(profiles prompt_injection_detection jailbreak_detection pii_detection pii_redaction content_moderation fail_on_detection options)a
+  @model_ref_fields ~w(id name version provider framework architecture task artifact_uri metadata options)a
+  @model_version_fields ~w(id model_id version stage training_run_id metrics artifact_uri parent_version description created_at created_by options)a
+  @training_config_fields ~w(id model_ref dataset_ref epochs batch_size learning_rate optimizer loss_function metrics validation_split device seed mixed_precision gradient_clipping early_stopping checkpoint_every options)a
+  @training_run_fields ~w(id config status current_epoch metrics_history best_metrics checkpoint_uris final_model_version started_at completed_at error_message options)a
+  @deployment_config_fields ~w(id model_version_id target replicas resources scaling environment strategy health_check endpoint metadata options)a
+  @deployment_status_fields ~w(id deployment_id state ready_replicas total_replicas endpoint_url traffic_percent health last_health_check error_message created_at updated_at)a
+  @feedback_event_fields ~w(id deployment_id model_version input output feedback_type feedback_value user_id session_id latency_ms timestamp metadata)a
+  @feedback_config_fields ~w(enabled sampling_rate feedback_types storage retention_days anonymize_pii drift_detection retraining_trigger options)a
 
   @doc """
   Encodes a struct to a JSON string.
@@ -260,6 +272,110 @@ defmodule CrucibleIR.Serialization do
     end
   end
 
+  def from_map(map, ModelRef) when is_map(map) do
+    try do
+      attrs =
+        map
+        |> atomize_keys(@model_ref_fields)
+        |> convert_model_ref_fields()
+
+      {:ok, struct!(ModelRef, attrs)}
+    rescue
+      e -> {:error, e}
+    end
+  end
+
+  def from_map(map, ModelVersion) when is_map(map) do
+    try do
+      attrs =
+        map
+        |> atomize_keys(@model_version_fields)
+        |> convert_model_version_fields()
+
+      {:ok, struct!(ModelVersion, attrs)}
+    rescue
+      e -> {:error, e}
+    end
+  end
+
+  def from_map(map, Training.Config) when is_map(map) do
+    try do
+      attrs =
+        map
+        |> atomize_keys(@training_config_fields)
+        |> convert_training_config_fields()
+
+      {:ok, struct!(Training.Config, attrs)}
+    rescue
+      e -> {:error, e}
+    end
+  end
+
+  def from_map(map, Training.Run) when is_map(map) do
+    try do
+      attrs =
+        map
+        |> atomize_keys(@training_run_fields)
+        |> convert_training_run_fields()
+
+      {:ok, struct!(Training.Run, attrs)}
+    rescue
+      e -> {:error, e}
+    end
+  end
+
+  def from_map(map, Deployment.Config) when is_map(map) do
+    try do
+      attrs =
+        map
+        |> atomize_keys(@deployment_config_fields)
+        |> convert_deployment_config_fields()
+
+      {:ok, struct!(Deployment.Config, attrs)}
+    rescue
+      e -> {:error, e}
+    end
+  end
+
+  def from_map(map, Deployment.Status) when is_map(map) do
+    try do
+      attrs =
+        map
+        |> atomize_keys(@deployment_status_fields)
+        |> convert_deployment_status_fields()
+
+      {:ok, struct!(Deployment.Status, attrs)}
+    rescue
+      e -> {:error, e}
+    end
+  end
+
+  def from_map(map, Feedback.Event) when is_map(map) do
+    try do
+      attrs =
+        map
+        |> atomize_keys(@feedback_event_fields)
+        |> convert_feedback_event_fields()
+
+      {:ok, struct!(Feedback.Event, attrs)}
+    rescue
+      e -> {:error, e}
+    end
+  end
+
+  def from_map(map, Feedback.Config) when is_map(map) do
+    try do
+      attrs =
+        map
+        |> atomize_keys(@feedback_config_fields)
+        |> convert_feedback_config_fields()
+
+      {:ok, struct!(Feedback.Config, attrs)}
+    rescue
+      e -> {:error, e}
+    end
+  end
+
   # Private helper functions
 
   defp atomize_keys(map, allowed_fields) when is_map(map) do
@@ -415,5 +531,76 @@ defmodule CrucibleIR.Serialization do
       {:ok, struct} -> struct
       {:error, e} -> raise e
     end
+  end
+
+  defp convert_model_ref_fields(attrs) do
+    attrs
+    |> convert_field(:id, &to_existing_atom/1)
+    |> convert_field(:provider, &to_existing_atom/1)
+    |> convert_field(:framework, &to_existing_atom/1)
+    |> convert_field(:architecture, &to_existing_atom/1)
+    |> convert_field(:task, &to_existing_atom/1)
+  end
+
+  defp convert_model_version_fields(attrs) do
+    attrs
+    |> convert_field(:id, &to_existing_atom/1)
+    |> convert_field(:model_id, &to_existing_atom/1)
+    |> convert_field(:stage, &to_existing_atom/1)
+    |> convert_field(:training_run_id, &to_existing_atom/1)
+    |> convert_field(:created_at, &parse_datetime/1)
+  end
+
+  defp convert_training_config_fields(attrs) do
+    attrs
+    |> convert_field(:id, &to_existing_atom/1)
+    |> convert_field(:model_ref, fn map -> from_map!(map, ModelRef) end)
+    |> convert_field(:dataset_ref, fn map -> from_map!(map, DatasetRef) end)
+    |> convert_field(:optimizer, &to_existing_atom/1)
+    |> convert_field(:loss_function, &to_existing_atom/1)
+    |> convert_field(:device, &to_existing_atom/1)
+    |> convert_field(:metrics, fn list -> Enum.map(list, &to_existing_atom/1) end)
+  end
+
+  defp convert_training_run_fields(attrs) do
+    attrs
+    |> convert_field(:id, &to_existing_atom/1)
+    |> convert_field(:config, fn map -> from_map!(map, Training.Config) end)
+    |> convert_field(:status, &to_existing_atom/1)
+    |> convert_field(:final_model_version, &to_existing_atom/1)
+    |> convert_field(:started_at, &parse_datetime/1)
+    |> convert_field(:completed_at, &parse_datetime/1)
+  end
+
+  defp convert_deployment_config_fields(attrs) do
+    attrs
+    |> convert_field(:id, &to_existing_atom/1)
+    |> convert_field(:model_version_id, &to_existing_atom/1)
+    |> convert_field(:environment, &to_existing_atom/1)
+    |> convert_field(:strategy, &to_existing_atom/1)
+  end
+
+  defp convert_deployment_status_fields(attrs) do
+    attrs
+    |> convert_field(:id, &to_existing_atom/1)
+    |> convert_field(:deployment_id, &to_existing_atom/1)
+    |> convert_field(:state, &to_existing_atom/1)
+    |> convert_field(:health, &to_existing_atom/1)
+    |> convert_field(:last_health_check, &parse_datetime/1)
+    |> convert_field(:created_at, &parse_datetime/1)
+    |> convert_field(:updated_at, &parse_datetime/1)
+  end
+
+  defp convert_feedback_event_fields(attrs) do
+    attrs
+    |> convert_field(:deployment_id, &to_existing_atom/1)
+    |> convert_field(:feedback_type, &to_existing_atom/1)
+    |> convert_field(:timestamp, &parse_datetime/1)
+  end
+
+  defp convert_feedback_config_fields(attrs) do
+    attrs
+    |> convert_field(:storage, &to_existing_atom/1)
+    |> convert_field(:feedback_types, fn list -> Enum.map(list, &to_existing_atom/1) end)
   end
 end

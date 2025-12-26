@@ -31,6 +31,10 @@ defmodule CrucibleIR.Validation do
   """
 
   alias CrucibleIR.{Experiment, BackendRef, StageDef, DatasetRef, OutputSpec}
+  alias CrucibleIR.{ModelRef, ModelVersion}
+  alias CrucibleIR.Training
+  alias CrucibleIR.Deployment
+  alias CrucibleIR.Feedback
   alias CrucibleIR.Reliability.{Config, Ensemble, Hedging, Stats, Fairness, Guardrail}
 
   @doc """
@@ -68,6 +72,14 @@ defmodule CrucibleIR.Validation do
   def validate(%Stats{} = stats), do: validate_stats(stats)
   def validate(%Fairness{} = fairness), do: validate_fairness(fairness)
   def validate(%Guardrail{} = guardrail), do: validate_guardrail(guardrail)
+  def validate(%ModelRef{} = model), do: validate_model_ref(model)
+  def validate(%ModelVersion{} = version), do: validate_model_version(version)
+  def validate(%Training.Config{} = config), do: validate_training_config(config)
+  def validate(%Training.Run{} = run), do: validate_training_run(run)
+  def validate(%Deployment.Config{} = config), do: validate_deployment_config(config)
+  def validate(%Deployment.Status{} = status), do: validate_deployment_status(status)
+  def validate(%Feedback.Event{} = event), do: validate_feedback_event(event)
+  def validate(%Feedback.Config{} = config), do: validate_feedback_config(config)
 
   @doc """
   Returns `true` if the struct is valid, `false` otherwise.
@@ -367,5 +379,242 @@ defmodule CrucibleIR.Validation do
   defp validate_guardrail(%Guardrail{} = guardrail) do
     # Guardrail currently has no required fields
     {:ok, guardrail}
+  end
+
+  defp validate_model_ref(%ModelRef{} = model) do
+    errors = []
+
+    errors =
+      if is_nil(model.id) do
+        ["id is required" | errors]
+      else
+        errors
+      end
+
+    if Enum.empty?(errors) do
+      {:ok, model}
+    else
+      {:error, Enum.reverse(errors)}
+    end
+  end
+
+  defp validate_model_version(%ModelVersion{} = version) do
+    errors = []
+
+    errors =
+      if is_nil(version.id) do
+        ["id is required" | errors]
+      else
+        errors
+      end
+
+    errors =
+      if is_nil(version.model_id) do
+        ["model_id is required" | errors]
+      else
+        errors
+      end
+
+    errors =
+      if is_nil(version.version) or version.version == "" do
+        ["version is required" | errors]
+      else
+        # Basic semver validation
+        if is_binary(version.version) and not Regex.match?(~r/^\d+\.\d+\.\d+/, version.version) do
+          ["version must be a valid semver format (e.g., 1.0.0)" | errors]
+        else
+          errors
+        end
+      end
+
+    if Enum.empty?(errors) do
+      {:ok, version}
+    else
+      {:error, Enum.reverse(errors)}
+    end
+  end
+
+  defp validate_training_config(%Training.Config{} = config) do
+    errors = []
+
+    errors =
+      if is_nil(config.id) do
+        ["id is required" | errors]
+      else
+        errors
+      end
+
+    errors =
+      if is_nil(config.model_ref) do
+        ["model_ref is required" | errors]
+      else
+        errors
+      end
+
+    errors =
+      if is_nil(config.dataset_ref) do
+        ["dataset_ref is required" | errors]
+      else
+        errors
+      end
+
+    errors =
+      if not is_nil(config.epochs) and config.epochs < 1 do
+        ["epochs must be positive" | errors]
+      else
+        errors
+      end
+
+    errors =
+      if not is_nil(config.batch_size) and config.batch_size < 1 do
+        ["batch_size must be positive" | errors]
+      else
+        errors
+      end
+
+    errors =
+      if not is_nil(config.learning_rate) and config.learning_rate <= 0 do
+        ["learning_rate must be positive" | errors]
+      else
+        errors
+      end
+
+    if Enum.empty?(errors) do
+      {:ok, config}
+    else
+      {:error, Enum.reverse(errors)}
+    end
+  end
+
+  defp validate_training_run(%Training.Run{} = run) do
+    errors = []
+
+    errors =
+      if is_nil(run.id) do
+        ["id is required" | errors]
+      else
+        errors
+      end
+
+    errors =
+      if is_nil(run.config) do
+        ["config is required" | errors]
+      else
+        errors
+      end
+
+    valid_statuses = [:pending, :running, :completed, :failed, :cancelled]
+
+    errors =
+      if run.status not in valid_statuses do
+        ["status must be one of: #{Enum.join(valid_statuses, ", ")}" | errors]
+      else
+        errors
+      end
+
+    if Enum.empty?(errors) do
+      {:ok, run}
+    else
+      {:error, Enum.reverse(errors)}
+    end
+  end
+
+  defp validate_deployment_config(%Deployment.Config{} = config) do
+    errors = []
+
+    errors =
+      if is_nil(config.id) do
+        ["id is required" | errors]
+      else
+        errors
+      end
+
+    errors =
+      if is_nil(config.model_version_id) do
+        ["model_version_id is required" | errors]
+      else
+        errors
+      end
+
+    errors =
+      if not is_nil(config.replicas) and config.replicas < 1 do
+        ["replicas must be positive" | errors]
+      else
+        errors
+      end
+
+    if Enum.empty?(errors) do
+      {:ok, config}
+    else
+      {:error, Enum.reverse(errors)}
+    end
+  end
+
+  defp validate_deployment_status(%Deployment.Status{} = status) do
+    errors = []
+
+    errors =
+      if is_nil(status.id) do
+        ["id is required" | errors]
+      else
+        errors
+      end
+
+    errors =
+      if is_nil(status.deployment_id) do
+        ["deployment_id is required" | errors]
+      else
+        errors
+      end
+
+    valid_states = [:pending, :deploying, :active, :degraded, :failed, :terminated]
+
+    errors =
+      if status.state not in valid_states do
+        ["state must be one of: #{Enum.join(valid_states, ", ")}" | errors]
+      else
+        errors
+      end
+
+    if Enum.empty?(errors) do
+      {:ok, status}
+    else
+      {:error, Enum.reverse(errors)}
+    end
+  end
+
+  defp validate_feedback_event(%Feedback.Event{} = event) do
+    errors = []
+
+    errors =
+      if is_nil(event.id) or event.id == "" do
+        ["id is required" | errors]
+      else
+        errors
+      end
+
+    if Enum.empty?(errors) do
+      {:ok, event}
+    else
+      {:error, Enum.reverse(errors)}
+    end
+  end
+
+  defp validate_feedback_config(%Feedback.Config{} = config) do
+    errors = []
+
+    errors =
+      if not is_nil(config.sampling_rate) and
+           (config.sampling_rate < 0 or config.sampling_rate > 1) do
+        ["sampling_rate must be between 0 and 1" | errors]
+      else
+        errors
+      end
+
+    if Enum.empty?(errors) do
+      {:ok, config}
+    else
+      {:error, Enum.reverse(errors)}
+    end
   end
 end

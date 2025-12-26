@@ -23,6 +23,10 @@ defmodule CrucibleIR.Experiment do
   - `:outputs` - Output specifications
   - `:created_at` - Experiment creation timestamp
   - `:updated_at` - Last update timestamp
+  - `:experiment_type` - Type of experiment (evaluation, training, comparison, ablation)
+  - `:model_version` - Model version being evaluated
+  - `:training_config` - Training configuration for training experiments
+  - `:baseline` - Baseline model reference for comparison experiments
 
   ## Examples
 
@@ -47,8 +51,9 @@ defmodule CrucibleIR.Experiment do
       0.01
   """
 
-  alias CrucibleIR.{BackendRef, DatasetRef, StageDef, OutputSpec}
+  alias CrucibleIR.{BackendRef, DatasetRef, StageDef, OutputSpec, ModelRef, ModelVersion}
   alias CrucibleIR.Reliability.Config
+  alias CrucibleIR.Training
 
   @derive Jason.Encoder
   @enforce_keys [:id, :backend, :pipeline]
@@ -64,8 +69,14 @@ defmodule CrucibleIR.Experiment do
     :reliability,
     :outputs,
     :created_at,
-    :updated_at
+    :updated_at,
+    :experiment_type,
+    :model_version,
+    :training_config,
+    :baseline
   ]
+
+  @type experiment_type :: :evaluation | :training | :comparison | :ablation | atom()
 
   @type t :: %__MODULE__{
           id: atom(),
@@ -79,6 +90,10 @@ defmodule CrucibleIR.Experiment do
           reliability: Config.t() | nil,
           outputs: [OutputSpec.t()] | nil,
           created_at: DateTime.t() | nil,
-          updated_at: DateTime.t() | nil
+          updated_at: DateTime.t() | nil,
+          experiment_type: experiment_type() | nil,
+          model_version: ModelVersion.t() | nil,
+          training_config: Training.Config.t() | nil,
+          baseline: ModelRef.t() | nil
         }
 end

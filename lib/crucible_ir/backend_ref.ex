@@ -10,6 +10,10 @@ defmodule CrucibleIR.BackendRef do
   - `:id` - The backend identifier (required)
   - `:profile` - The configuration profile to use (default: `:default`)
   - `:options` - Additional backend-specific options
+  - `:model_version` - Specific model version string
+  - `:endpoint_url` - Custom endpoint URL
+  - `:deployment_id` - Link to deployment
+  - `:fallback` - Fallback backend reference
 
   ## Examples
 
@@ -30,6 +34,10 @@ defmodule CrucibleIR.BackendRef do
   @enforce_keys [:id]
   defstruct [
     :id,
+    :model_version,
+    :endpoint_url,
+    :deployment_id,
+    :fallback,
     profile: :default,
     options: nil
   ]
@@ -37,6 +45,10 @@ defmodule CrucibleIR.BackendRef do
   @type t :: %__MODULE__{
           id: atom(),
           profile: atom(),
-          options: map() | nil
+          options: map() | nil,
+          model_version: String.t() | nil,
+          endpoint_url: String.t() | nil,
+          deployment_id: atom() | nil,
+          fallback: t() | nil
         }
 end

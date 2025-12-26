@@ -24,6 +24,9 @@ defmodule CrucibleIR.Builder do
   """
 
   alias CrucibleIR.{Experiment, BackendRef, StageDef, DatasetRef, OutputSpec}
+  alias CrucibleIR.{ModelRef, ModelVersion}
+  alias CrucibleIR.Training
+  alias CrucibleIR.Feedback
   alias CrucibleIR.Reliability.{Config, Ensemble, Hedging, Stats, Fairness, Guardrail}
   alias CrucibleIR.Validation
 
@@ -401,6 +404,155 @@ defmodule CrucibleIR.Builder do
 
     outputs = (exp.outputs || []) ++ [output]
     %{exp | outputs: outputs}
+  end
+
+  @doc """
+  Sets the experiment type.
+
+  ## Parameters
+
+  - `exp` - Experiment struct
+  - `type` - Experiment type (:evaluation, :training, :comparison, :ablation)
+
+  ## Examples
+
+      iex> exp = CrucibleIR.Builder.experiment(:test)
+      iex> |> CrucibleIR.Builder.with_experiment_type(:evaluation)
+      iex> exp.experiment_type
+      :evaluation
+  """
+  @spec with_experiment_type(builder_experiment(), atom()) :: builder_experiment()
+  def with_experiment_type(%Experiment{} = exp, type) when is_atom(type) do
+    %{exp | experiment_type: type}
+  end
+
+  @doc """
+  Sets a model version for the experiment.
+
+  ## Parameters
+
+  - `exp` - Experiment struct
+  - `model_id` - Model identifier
+  - `version` - Version string
+  - `opts` - Optional keyword list with version options
+
+  ## Examples
+
+      iex> exp = CrucibleIR.Builder.experiment(:test)
+      iex> |> CrucibleIR.Builder.with_model_version(:gpt2, "1.0.0")
+      iex> exp.model_version.version
+      "1.0.0"
+  """
+  @spec with_model_version(builder_experiment(), atom(), String.t(), keyword()) ::
+          builder_experiment()
+  def with_model_version(%Experiment{} = exp, model_id, version, opts \\ []) do
+    model_version = %ModelVersion{
+      id: Keyword.get(opts, :id, :"#{model_id}_#{String.replace(version, ".", "_")}"),
+      model_id: model_id,
+      version: version,
+      stage: Keyword.get(opts, :stage, :development),
+      metrics: Keyword.get(opts, :metrics),
+      artifact_uri: Keyword.get(opts, :artifact_uri)
+    }
+
+    %{exp | model_version: model_version}
+  end
+
+  @doc """
+  Sets a baseline model for comparison experiments.
+
+  ## Parameters
+
+  - `exp` - Experiment struct
+  - `model_id` - Baseline model identifier
+  - `opts` - Optional keyword list with model options
+
+  ## Examples
+
+      iex> exp = CrucibleIR.Builder.experiment(:test)
+      iex> |> CrucibleIR.Builder.with_baseline(:gpt3)
+      iex> exp.baseline.id
+      :gpt3
+  """
+  @spec with_baseline(builder_experiment(), atom(), keyword()) :: builder_experiment()
+  def with_baseline(%Experiment{} = exp, model_id, opts \\ []) when is_atom(model_id) do
+    baseline = %ModelRef{
+      id: model_id,
+      provider: Keyword.get(opts, :provider, :local),
+      framework: Keyword.get(opts, :framework, :nx),
+      version: Keyword.get(opts, :version)
+    }
+
+    %{exp | baseline: baseline}
+  end
+
+  @doc """
+  Adds feedback collection configuration to the experiment.
+
+  ## Parameters
+
+  - `exp` - Experiment struct
+  - `opts` - Keyword list with feedback options
+
+  ## Examples
+
+      iex> exp = CrucibleIR.Builder.experiment(:test)
+      iex> |> CrucibleIR.Builder.with_feedback(enabled: true, sampling_rate: 0.1)
+      iex> exp.reliability.feedback.sampling_rate
+      0.1
+  """
+  @spec with_feedback(builder_experiment(), keyword()) :: builder_experiment()
+  def with_feedback(%Experiment{} = exp, opts \\ []) do
+    feedback = %Feedback.Config{
+      enabled: Keyword.get(opts, :enabled, true),
+      sampling_rate: Keyword.get(opts, :sampling_rate, 1.0),
+      feedback_types: Keyword.get(opts, :feedback_types, [:thumbs, :correction]),
+      storage: Keyword.get(opts, :storage, :postgres),
+      anonymize_pii: Keyword.get(opts, :anonymize_pii, true),
+      retention_days: Keyword.get(opts, :retention_days),
+      options: Keyword.get(opts, :options)
+    }
+
+    reliability = get_or_create_reliability(exp)
+    reliability = %{reliability | feedback: feedback}
+    %{exp | reliability: reliability}
+  end
+
+  @doc """
+  Adds training configuration to the experiment.
+
+  ## Parameters
+
+  - `exp` - Experiment struct
+  - `model_ref` - ModelRef struct or keyword to create one
+  - `dataset_ref` - DatasetRef struct or keyword to create one
+  - `opts` - Optional keyword list with training options
+
+  ## Examples
+
+      iex> model = %CrucibleIR.ModelRef{id: :gpt2}
+      iex> dataset = %CrucibleIR.DatasetRef{name: :wikitext}
+      iex> exp = CrucibleIR.Builder.experiment(:test)
+      iex> |> CrucibleIR.Builder.with_training_config(model, dataset, epochs: 10)
+      iex> exp.training_config.epochs
+      10
+  """
+  @spec with_training_config(builder_experiment(), ModelRef.t(), DatasetRef.t(), keyword()) ::
+          builder_experiment()
+  def with_training_config(%Experiment{} = exp, %ModelRef{} = model_ref, dataset_ref, opts \\ []) do
+    training_config = %Training.Config{
+      id: Keyword.get(opts, :id, :"train_#{exp.id}"),
+      model_ref: model_ref,
+      dataset_ref: dataset_ref,
+      epochs: Keyword.get(opts, :epochs, 1),
+      batch_size: Keyword.get(opts, :batch_size, 32),
+      learning_rate: Keyword.get(opts, :learning_rate, 0.001),
+      optimizer: Keyword.get(opts, :optimizer, :adam),
+      device: Keyword.get(opts, :device, :cpu),
+      options: Keyword.get(opts, :options)
+    }
+
+    %{exp | training_config: training_config}
   end
 
   @doc """
