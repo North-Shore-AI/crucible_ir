@@ -1,8 +1,8 @@
 defmodule CrucibleIR.Training.ConfigTest do
   use ExUnit.Case, async: true
 
+  alias CrucibleIR.{DatasetRef, ModelRef}
   alias CrucibleIR.Training.Config
-  alias CrucibleIR.{ModelRef, DatasetRef}
 
   describe "struct creation" do
     test "creates with required fields" do

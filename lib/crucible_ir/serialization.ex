@@ -11,6 +11,13 @@ defmodule CrucibleIR.Serialization do
   - `from_json/2` - Decode JSON string to struct of given type
   - `from_map/2` - Convert plain map to struct
 
+  ## Contract Notes
+
+  - This module is the canonical JSON round-trip layer for CrucibleIR.
+  - Fields like `options` and `StageDef.options` are treated as opaque maps and
+    are not coerced or validated.
+  - For stable round-trip behavior, ensure map keys are JSON-friendly (strings).
+
   ## Examples
 
       iex> alias CrucibleIR.BackendRef
@@ -26,12 +33,21 @@ defmodule CrucibleIR.Serialization do
       :gpt4
   """
 
-  alias CrucibleIR.{Experiment, BackendRef, StageDef, DatasetRef, OutputSpec}
-  alias CrucibleIR.{ModelRef, ModelVersion}
-  alias CrucibleIR.Training
   alias CrucibleIR.Deployment
   alias CrucibleIR.Feedback
-  alias CrucibleIR.Reliability.{Config, Ensemble, Hedging, Stats, Fairness, Guardrail}
+
+  alias CrucibleIR.{
+    BackendRef,
+    DatasetRef,
+    Experiment,
+    ModelRef,
+    ModelVersion,
+    OutputSpec,
+    StageDef
+  }
+
+  alias CrucibleIR.Reliability.{Config, Ensemble, Fairness, Guardrail, Hedging, Stats}
+  alias CrucibleIR.Training
 
   @experiment_fields ~w(id backend pipeline description owner tags metadata dataset reliability outputs created_at updated_at experiment_type model_version training_config baseline)a
   @backend_ref_fields ~w(id profile options model_version endpoint_url deployment_id fallback)a
@@ -130,250 +146,212 @@ defmodule CrucibleIR.Serialization do
   """
   @spec from_map(map(), module()) :: {:ok, struct()} | {:error, term()}
   def from_map(map, Experiment) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@experiment_fields)
         |> convert_experiment_fields()
 
-      {:ok, struct!(Experiment, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(Experiment, attrs)
+    end)
   end
 
   def from_map(map, BackendRef) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@backend_ref_fields)
         |> convert_backend_ref_fields()
 
-      {:ok, struct!(BackendRef, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(BackendRef, attrs)
+    end)
   end
 
   def from_map(map, StageDef) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@stage_def_fields)
         |> convert_stage_def_fields()
 
-      {:ok, struct!(StageDef, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(StageDef, attrs)
+    end)
   end
 
   def from_map(map, DatasetRef) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@dataset_ref_fields)
         |> convert_dataset_ref_fields()
 
-      {:ok, struct!(DatasetRef, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(DatasetRef, attrs)
+    end)
   end
 
   def from_map(map, OutputSpec) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@output_spec_fields)
         |> convert_output_spec_fields()
 
-      {:ok, struct!(OutputSpec, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(OutputSpec, attrs)
+    end)
   end
 
   def from_map(map, Config) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@config_fields)
         |> convert_reliability_config_fields()
 
-      {:ok, struct!(Config, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(Config, attrs)
+    end)
   end
 
   def from_map(map, Ensemble) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@ensemble_fields)
         |> convert_ensemble_fields()
 
-      {:ok, struct!(Ensemble, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(Ensemble, attrs)
+    end)
   end
 
   def from_map(map, Hedging) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@hedging_fields)
         |> convert_hedging_fields()
 
-      {:ok, struct!(Hedging, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(Hedging, attrs)
+    end)
   end
 
   def from_map(map, Stats) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@stats_fields)
         |> convert_stats_fields()
 
-      {:ok, struct!(Stats, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(Stats, attrs)
+    end)
   end
 
   def from_map(map, Fairness) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@fairness_fields)
         |> convert_fairness_fields()
 
-      {:ok, struct!(Fairness, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(Fairness, attrs)
+    end)
   end
 
   def from_map(map, Guardrail) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@guardrail_fields)
         |> convert_guardrail_fields()
 
-      {:ok, struct!(Guardrail, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(Guardrail, attrs)
+    end)
   end
 
   def from_map(map, ModelRef) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@model_ref_fields)
         |> convert_model_ref_fields()
 
-      {:ok, struct!(ModelRef, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(ModelRef, attrs)
+    end)
   end
 
   def from_map(map, ModelVersion) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@model_version_fields)
         |> convert_model_version_fields()
 
-      {:ok, struct!(ModelVersion, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(ModelVersion, attrs)
+    end)
   end
 
   def from_map(map, Training.Config) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@training_config_fields)
         |> convert_training_config_fields()
 
-      {:ok, struct!(Training.Config, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(Training.Config, attrs)
+    end)
   end
 
   def from_map(map, Training.Run) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@training_run_fields)
         |> convert_training_run_fields()
 
-      {:ok, struct!(Training.Run, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(Training.Run, attrs)
+    end)
   end
 
   def from_map(map, Deployment.Config) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@deployment_config_fields)
         |> convert_deployment_config_fields()
 
-      {:ok, struct!(Deployment.Config, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(Deployment.Config, attrs)
+    end)
   end
 
   def from_map(map, Deployment.Status) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@deployment_status_fields)
         |> convert_deployment_status_fields()
 
-      {:ok, struct!(Deployment.Status, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(Deployment.Status, attrs)
+    end)
   end
 
   def from_map(map, Feedback.Event) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@feedback_event_fields)
         |> convert_feedback_event_fields()
 
-      {:ok, struct!(Feedback.Event, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(Feedback.Event, attrs)
+    end)
   end
 
   def from_map(map, Feedback.Config) when is_map(map) do
-    try do
+    try_from_map(fn ->
       attrs =
         map
         |> atomize_keys(@feedback_config_fields)
         |> convert_feedback_config_fields()
 
-      {:ok, struct!(Feedback.Config, attrs)}
-    rescue
-      e -> {:error, e}
-    end
+      struct!(Feedback.Config, attrs)
+    end)
   end
 
   # Private helper functions
@@ -382,20 +360,28 @@ defmodule CrucibleIR.Serialization do
     allowed_strings = MapSet.new(allowed_fields, &Atom.to_string/1)
 
     Enum.reduce(map, %{}, fn {k, v}, acc ->
-      cond do
-        is_atom(k) and k in allowed_fields ->
-          Map.put(acc, k, v)
-
-        is_binary(k) and MapSet.member?(allowed_strings, k) ->
-          case safe_existing_atom(k) do
-            {:ok, atom} -> Map.put(acc, atom, v)
-            :error -> acc
-          end
-
-        true ->
-          acc
-      end
+      atomize_key_value(acc, k, v, allowed_fields, allowed_strings)
     end)
+  end
+
+  defp atomize_key_value(acc, key, value, allowed_fields, allowed_strings) do
+    cond do
+      is_atom(key) and key in allowed_fields ->
+        Map.put(acc, key, value)
+
+      is_binary(key) and MapSet.member?(allowed_strings, key) ->
+        safe_existing_atom_or_put(acc, key, value)
+
+      true ->
+        acc
+    end
+  end
+
+  defp safe_existing_atom_or_put(acc, key, value) do
+    case safe_existing_atom(key) do
+      {:ok, atom} -> Map.put(acc, atom, value)
+      :error -> acc
+    end
   end
 
   defp convert_experiment_fields(attrs) do
@@ -410,6 +396,19 @@ defmodule CrucibleIR.Serialization do
     |> convert_field(:outputs, fn list ->
       Enum.map(list, fn output_map -> from_map!(output_map, OutputSpec) end)
     end)
+    |> convert_field(:experiment_type, &to_existing_atom/1)
+    |> convert_field(:model_version, fn
+      %{} = map -> from_map!(map, ModelVersion)
+      value -> value
+    end)
+    |> convert_field(:training_config, fn
+      %{} = map -> from_map!(map, Training.Config)
+      value -> value
+    end)
+    |> convert_field(:baseline, fn
+      %{} = map -> from_map!(map, ModelRef)
+      value -> value
+    end)
     |> convert_field(:tags, fn list -> Enum.map(list, &to_existing_atom/1) end)
     |> convert_field(:created_at, &parse_datetime/1)
     |> convert_field(:updated_at, &parse_datetime/1)
@@ -419,32 +418,42 @@ defmodule CrucibleIR.Serialization do
     attrs
     |> convert_field(:id, &to_existing_atom/1)
     |> convert_field(:profile, &to_existing_atom/1)
+    |> convert_field(:deployment_id, &to_existing_atom/1)
+    |> convert_field(:fallback, fn
+      %{} = map -> from_map!(map, BackendRef)
+      value -> value
+    end)
   end
 
   defp convert_stage_def_fields(attrs) do
     attrs
     |> convert_field(:name, &to_existing_atom/1)
+    |> convert_field(:module, &to_existing_atom/1)
   end
 
   defp convert_dataset_ref_fields(attrs) do
     attrs
-    |> convert_field(:name, fn
-      val when is_binary(val) ->
-        # Keep as string if it doesn't look like an atom identifier
-        if String.match?(val, ~r/^[a-z_][a-z0-9_]*$/) do
-          case safe_existing_atom(val) do
-            {:ok, atom} -> atom
-            :error -> val
-          end
-        else
-          val
-        end
-
-      val ->
-        to_existing_atom(val)
-    end)
+    |> convert_field(:name, &normalize_dataset_name/1)
     |> convert_field(:provider, &to_existing_atom/1)
     |> convert_field(:split, &to_existing_atom/1)
+    |> convert_field(:format, &to_existing_atom/1)
+  end
+
+  defp normalize_dataset_name(val) when is_binary(val) do
+    if String.match?(val, ~r/^[a-z_][a-z0-9_]*$/) do
+      safe_existing_atom_or_value(val)
+    else
+      val
+    end
+  end
+
+  defp normalize_dataset_name(val), do: to_existing_atom(val)
+
+  defp safe_existing_atom_or_value(value) do
+    case safe_existing_atom(value) do
+      {:ok, atom} -> atom
+      :error -> value
+    end
   end
 
   defp convert_output_spec_fields(attrs) do
@@ -461,6 +470,10 @@ defmodule CrucibleIR.Serialization do
     |> convert_field(:guardrails, fn map -> from_map!(map, Guardrail) end)
     |> convert_field(:stats, fn map -> from_map!(map, Stats) end)
     |> convert_field(:fairness, fn map -> from_map!(map, Fairness) end)
+    |> convert_field(:feedback, fn
+      %{} = map -> from_map!(map, Feedback.Config)
+      value -> value
+    end)
   end
 
   defp convert_ensemble_fields(attrs) do
@@ -468,6 +481,7 @@ defmodule CrucibleIR.Serialization do
     |> convert_field(:strategy, &to_existing_atom/1)
     |> convert_field(:execution_mode, &to_existing_atom/1)
     |> convert_field(:models, fn list -> Enum.map(list, &to_existing_atom/1) end)
+    |> convert_field(:weights, &convert_map_keys_to_existing_atoms/1)
   end
 
   defp convert_hedging_fields(attrs) do
@@ -498,6 +512,21 @@ defmodule CrucibleIR.Serialization do
       nil -> attrs
       value -> Map.put(attrs, field, converter.(value))
     end
+  end
+
+  defp convert_map_keys_to_existing_atoms(value) when is_map(value) do
+    Enum.reduce(value, %{}, fn {key, map_value}, acc ->
+      converted_key = to_existing_atom(key)
+      Map.put(acc, converted_key, map_value)
+    end)
+  end
+
+  defp convert_map_keys_to_existing_atoms(value), do: value
+
+  defp try_from_map(fun) when is_function(fun, 0) do
+    {:ok, fun.()}
+  rescue
+    e -> {:error, e}
   end
 
   defp to_existing_atom(value) when is_atom(value), do: value

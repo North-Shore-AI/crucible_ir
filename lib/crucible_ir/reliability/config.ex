@@ -28,8 +28,8 @@ defmodule CrucibleIR.Reliability.Config do
       :majority
   """
 
-  alias CrucibleIR.Reliability.{Ensemble, Hedging, Guardrail, Stats, Fairness}
   alias CrucibleIR.Feedback
+  alias CrucibleIR.Reliability.{Ensemble, Fairness, Guardrail, Hedging, Stats}
 
   @derive Jason.Encoder
   defstruct ensemble: nil,

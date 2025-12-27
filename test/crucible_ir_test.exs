@@ -3,7 +3,7 @@ defmodule CrucibleIRTest do
   doctest CrucibleIR
 
   alias CrucibleIR
-  alias CrucibleIR.{Experiment, BackendRef, StageDef, DatasetRef}
+  alias CrucibleIR.{BackendRef, DatasetRef, Experiment, StageDef}
   alias CrucibleIR.Reliability.{Config, Ensemble}
 
   describe "new_experiment/1" do

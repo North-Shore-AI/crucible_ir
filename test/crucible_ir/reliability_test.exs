@@ -1,7 +1,7 @@
 defmodule CrucibleIR.ReliabilityTest do
   use ExUnit.Case, async: true
 
-  alias CrucibleIR.Reliability.{Config, Ensemble, Hedging, Stats, Fairness, Guardrail}
+  alias CrucibleIR.Reliability.{Config, Ensemble, Fairness, Guardrail, Hedging, Stats}
 
   describe "Ensemble" do
     test "creates with defaults" do
@@ -97,7 +97,7 @@ defmodule CrucibleIR.ReliabilityTest do
         confidence_level: 0.99,
         effect_size_type: :cohens_d,
         multiple_testing_correction: :bonferroni,
-        bootstrap_iterations: 10000,
+        bootstrap_iterations: 10_000,
         options: %{seed: 42}
       }
 

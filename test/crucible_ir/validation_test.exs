@@ -1,8 +1,8 @@
 defmodule CrucibleIR.ValidationTest do
   use ExUnit.Case, async: true
 
-  alias CrucibleIR.{Experiment, BackendRef, StageDef, DatasetRef, OutputSpec}
-  alias CrucibleIR.Reliability.{Config, Ensemble, Hedging, Stats, Fairness, Guardrail}
+  alias CrucibleIR.{BackendRef, DatasetRef, Experiment, OutputSpec, StageDef}
+  alias CrucibleIR.Reliability.{Config, Ensemble, Fairness, Guardrail, Hedging, Stats}
   alias CrucibleIR.Validation
 
   describe "validate/1 for Experiment" do
@@ -332,7 +332,7 @@ defmodule CrucibleIR.ValidationTest do
 
       errors = Validation.errors(exp)
       assert is_list(errors)
-      assert length(errors) >= 3
+      assert match?([_, _, _ | _], errors)
     end
 
     test "returns empty list for valid backend" do
@@ -344,7 +344,7 @@ defmodule CrucibleIR.ValidationTest do
       backend = %BackendRef{id: nil}
       errors = Validation.errors(backend)
       assert is_list(errors)
-      assert length(errors) > 0
+      refute Enum.empty?(errors)
     end
   end
 end

@@ -1,7 +1,7 @@
 defmodule CrucibleIR.ExperimentTest do
   use ExUnit.Case, async: true
 
-  alias CrucibleIR.{Experiment, BackendRef, DatasetRef, StageDef, OutputSpec}
+  alias CrucibleIR.{BackendRef, DatasetRef, Experiment, OutputSpec, StageDef}
   alias CrucibleIR.Reliability.{Config, Ensemble, Stats}
 
   describe "struct creation" do

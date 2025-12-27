@@ -38,7 +38,7 @@ defmodule CrucibleIR.Training.Config do
       10
   """
 
-  alias CrucibleIR.{ModelRef, DatasetRef}
+  alias CrucibleIR.{DatasetRef, ModelRef}
 
   @derive Jason.Encoder
   @enforce_keys [:id, :model_ref, :dataset_ref]

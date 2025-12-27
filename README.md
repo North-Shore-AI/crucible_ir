@@ -21,11 +21,12 @@ Full docs: https://hexdocs.pm/crucible_ir
 
 - **Experiment Definition**: Complete experiment specifications with backends, pipelines, and datasets
 - **Reliability Configurations**: Ensemble voting, hedging, statistical testing, fairness, and guardrails
-- **Validation**: Built-in validation for all IR structs with detailed error messages
+- **Validation**: Structural validation for IR structs with detailed error messages (no stage option validation)
 - **JSON Serialization**: Bidirectional JSON conversion with automatic type handling
 - **Fluent Builder API**: Chainable, ergonomic experiment construction
 - **Type Safety**: Full type specifications for all structs
 - **Comprehensive Documentation**: 100% documentation coverage with examples
+- **Boundary Contract**: Data-only IR with no execution or orchestration logic
 
 ## Installation
 
@@ -34,7 +35,7 @@ Add `crucible_ir` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:crucible_ir, "~> 0.2.0"}
+    {:crucible_ir, "~> 0.2.1"}
   ]
 end
 ```
@@ -81,6 +82,11 @@ experiment = %{experiment |
 # Serialize to JSON
 {:ok, json} = Jason.encode(experiment)
 ```
+
+## Examples Directory
+
+See `examples/README.md` for a full set of API integration examples and setup
+notes for accounts and keys.
 
 ## Usage Workflow
 
@@ -368,6 +374,15 @@ CrucibleIR is used by:
 3. **JSON-First**: All structs support JSON serialization
 4. **Documentation**: Every module and public function is documented
 5. **Test Coverage**: High test coverage with property-based testing
+
+## Boundary and Serialization Contract
+
+- CrucibleIR is data-only: structs, serialization, and structural validation only.
+- Stage options (`StageDef.options`) are opaque maps; stage implementations validate them.
+- `CrucibleIR.Serialization` is the canonical JSON round-trip layer; JSON keys must remain stable.
+- Map keys should be JSON-friendly (strings) for stable round-trip in opaque fields like `options`.
+
+See `docs/20251226/ir_boundary/IR_BOUNDARY_AND_CONTRACT.md` for the full contract.
 
 ## Contributing
 

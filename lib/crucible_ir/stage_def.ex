@@ -12,6 +12,9 @@ defmodule CrucibleIR.StageDef do
   - `:options` - Stage-specific configuration options
   - `:enabled` - Whether this stage is active (default: `true`)
 
+  `:options` is an opaque map. CrucibleIR does not validate or coerce it; stage
+  implementations in domain packages own option validation.
+
   ## Examples
 
       iex> stage = %CrucibleIR.StageDef{name: :preprocessing}

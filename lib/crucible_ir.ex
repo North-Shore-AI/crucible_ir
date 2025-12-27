@@ -6,6 +6,9 @@ defmodule CrucibleIR do
   experiments across the Crucible ecosystem. It includes definitions for
   experiments, backends, datasets, reliability configurations, and more.
 
+  This package is data-only: structs, serialization, and structural validation.
+  Execution logic and stage option validation belong in domain packages.
+
   ## Main Components
 
   - `CrucibleIR.Experiment` - Top-level experiment definition

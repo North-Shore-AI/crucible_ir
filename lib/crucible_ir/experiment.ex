@@ -51,7 +51,7 @@ defmodule CrucibleIR.Experiment do
       0.01
   """
 
-  alias CrucibleIR.{BackendRef, DatasetRef, StageDef, OutputSpec, ModelRef, ModelVersion}
+  alias CrucibleIR.{BackendRef, DatasetRef, ModelRef, ModelVersion, OutputSpec, StageDef}
   alias CrucibleIR.Reliability.Config
   alias CrucibleIR.Training
 

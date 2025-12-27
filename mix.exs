@@ -1,7 +1,8 @@
 defmodule CrucibleIR.MixProject do
   use Mix.Project
 
-  @version "0.2.0"
+  @version "0.2.1"
+  @source_url "https://github.com/North-Shore-AI/crucible_ir"
 
   def project do
     [
@@ -14,7 +15,9 @@ defmodule CrucibleIR.MixProject do
       description: "Intermediate Representation for the Crucible ML reliability ecosystem",
       package: package(),
       docs: docs(),
-      name: "CrucibleIR"
+      name: "CrucibleIR",
+      source_url: @source_url,
+      homepage_url: @source_url
     ]
   end
 
@@ -35,6 +38,7 @@ defmodule CrucibleIR.MixProject do
     [
       licenses: ["MIT"],
       links: %{
+        "GitHub" => @source_url,
         "Docs" => "https://hexdocs.pm/crucible_ir"
       },
       maintainers: ["North-Shore-AI"],
@@ -52,6 +56,10 @@ defmodule CrucibleIR.MixProject do
   defp docs do
     [
       main: "readme",
+      name: "CrucibleIR",
+      source_ref: "v#{@version}",
+      source_url: @source_url,
+      homepage_url: @source_url,
       extras: ["README.md", "CHANGELOG.md", "LICENSE"],
       assets: %{"assets" => "assets"},
       logo: "assets/crucible_ir.svg"

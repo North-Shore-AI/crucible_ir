@@ -158,14 +158,14 @@ defmodule CrucibleIR.Feedback.ConfigTest do
       config = %Config{
         retraining_trigger: %{
           enabled: true,
-          min_feedback_count: 10000,
+          min_feedback_count: 10_000,
           accuracy_threshold: 0.75,
           check_interval_hours: 24
         }
       }
 
       assert config.retraining_trigger.enabled == true
-      assert config.retraining_trigger.min_feedback_count == 10000
+      assert config.retraining_trigger.min_feedback_count == 10_000
     end
   end
 

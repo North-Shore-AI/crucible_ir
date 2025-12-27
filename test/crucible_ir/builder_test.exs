@@ -1,8 +1,8 @@
 defmodule CrucibleIR.BuilderTest do
   use ExUnit.Case, async: true
 
-  alias CrucibleIR.Experiment
   alias CrucibleIR.Builder
+  alias CrucibleIR.Experiment
 
   describe "experiment/1" do
     test "creates a new experiment builder" do

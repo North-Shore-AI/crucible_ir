@@ -12,6 +12,9 @@ defmodule CrucibleIR.Validation do
   - `valid?/1` - Returns `true` if struct is valid, `false` otherwise
   - `errors/1` - Returns list of validation errors
 
+  Validation here is structural only. Stage option validation and execution
+  semantics belong to domain packages, not CrucibleIR.
+
   ## Examples
 
       iex> alias CrucibleIR.{Experiment, BackendRef, StageDef}
@@ -30,12 +33,21 @@ defmodule CrucibleIR.Validation do
       true
   """
 
-  alias CrucibleIR.{Experiment, BackendRef, StageDef, DatasetRef, OutputSpec}
-  alias CrucibleIR.{ModelRef, ModelVersion}
-  alias CrucibleIR.Training
   alias CrucibleIR.Deployment
   alias CrucibleIR.Feedback
-  alias CrucibleIR.Reliability.{Config, Ensemble, Hedging, Stats, Fairness, Guardrail}
+
+  alias CrucibleIR.{
+    BackendRef,
+    DatasetRef,
+    Experiment,
+    ModelRef,
+    ModelVersion,
+    OutputSpec,
+    StageDef
+  }
+
+  alias CrucibleIR.Reliability.{Config, Ensemble, Fairness, Guardrail, Hedging, Stats}
+  alias CrucibleIR.Training
 
   @doc """
   Validates a struct and returns `{:ok, struct}` if valid or `{:error, errors}` if invalid.
@@ -141,61 +153,63 @@ defmodule CrucibleIR.Validation do
   # Private validation functions
 
   defp validate_experiment(%Experiment{} = exp) do
-    errors = []
+    []
+    |> validate_experiment_id(exp)
+    |> validate_experiment_backend(exp)
+    |> validate_experiment_pipeline(exp)
+    |> validate_experiment_reliability(exp)
+    |> finalize_validation(exp)
+  end
 
-    errors =
-      if is_nil(exp.id) or exp.id == :"" do
-        ["id must be non-empty atom" | errors]
-      else
-        errors
-      end
-
-    errors =
-      if is_nil(exp.backend) do
-        ["backend is required" | errors]
-      else
-        case validate(exp.backend) do
-          {:ok, _} -> errors
-          {:error, backend_errors} -> Enum.map(backend_errors, &"backend.#{&1}") ++ errors
-        end
-      end
-
-    errors =
-      cond do
-        is_nil(exp.pipeline) ->
-          ["pipeline must be a list" | errors]
-
-        not is_list(exp.pipeline) ->
-          ["pipeline must be a list" | errors]
-
-        Enum.empty?(exp.pipeline) ->
-          ["pipeline must contain at least one stage" | errors]
-
-        true ->
-          exp.pipeline
-          |> Enum.with_index()
-          |> Enum.reduce(errors, fn {stage, _idx}, acc ->
-            case validate(stage) do
-              {:ok, _} -> acc
-              {:error, stage_errors} -> Enum.map(stage_errors, &"pipeline stage #{&1}") ++ acc
-            end
-          end)
-      end
-
-    errors =
-      if not is_nil(exp.reliability) do
-        case validate(exp.reliability) do
-          {:ok, _} -> errors
-          {:error, rel_errors} -> rel_errors ++ errors
-        end
-      else
-        errors
-      end
-
-    if Enum.empty?(errors) do
-      {:ok, exp}
+  defp validate_experiment_id(errors, %Experiment{id: id}) do
+    if is_nil(id) or id == :"" do
+      ["id must be non-empty atom" | errors]
     else
-      {:error, Enum.reverse(errors)}
+      errors
+    end
+  end
+
+  defp validate_experiment_backend(errors, %Experiment{backend: nil}) do
+    ["backend is required" | errors]
+  end
+
+  defp validate_experiment_backend(errors, %Experiment{backend: backend}) do
+    case validate(backend) do
+      {:ok, _} -> errors
+      {:error, backend_errors} -> Enum.map(backend_errors, &"backend.#{&1}") ++ errors
+    end
+  end
+
+  defp validate_experiment_pipeline(errors, %Experiment{pipeline: nil}) do
+    ["pipeline must be a list" | errors]
+  end
+
+  defp validate_experiment_pipeline(errors, %Experiment{pipeline: pipeline})
+       when not is_list(pipeline) do
+    ["pipeline must be a list" | errors]
+  end
+
+  defp validate_experiment_pipeline(errors, %Experiment{pipeline: []}) do
+    ["pipeline must contain at least one stage" | errors]
+  end
+
+  defp validate_experiment_pipeline(errors, %Experiment{pipeline: pipeline}) do
+    Enum.reduce(pipeline, errors, fn stage, acc ->
+      case validate(stage) do
+        {:ok, _} -> acc
+        {:error, stage_errors} -> Enum.map(stage_errors, &"pipeline stage #{&1}") ++ acc
+      end
+    end)
+  end
+
+  defp validate_experiment_reliability(errors, %Experiment{reliability: nil}) do
+    errors
+  end
+
+  defp validate_experiment_reliability(errors, %Experiment{reliability: reliability}) do
+    case validate(reliability) do
+      {:ok, _} -> errors
+      {:error, rel_errors} -> rel_errors ++ errors
     end
   end
 
@@ -209,11 +223,7 @@ defmodule CrucibleIR.Validation do
         errors
       end
 
-    if Enum.empty?(errors) do
-      {:ok, backend}
-    else
-      {:error, Enum.reverse(errors)}
-    end
+    finalize_validation(errors, backend)
   end
 
   defp validate_stage_def(%StageDef{} = stage) do
@@ -226,11 +236,7 @@ defmodule CrucibleIR.Validation do
         errors
       end
 
-    if Enum.empty?(errors) do
-      {:ok, stage}
-    else
-      {:error, Enum.reverse(errors)}
-    end
+    finalize_validation(errors, stage)
   end
 
   defp validate_dataset_ref(%DatasetRef{} = dataset) do
@@ -243,11 +249,7 @@ defmodule CrucibleIR.Validation do
         errors
       end
 
-    if Enum.empty?(errors) do
-      {:ok, dataset}
-    else
-      {:error, Enum.reverse(errors)}
-    end
+    finalize_validation(errors, dataset)
   end
 
   defp validate_output_spec(%OutputSpec{} = output) do
@@ -260,115 +262,43 @@ defmodule CrucibleIR.Validation do
         errors
       end
 
-    if Enum.empty?(errors) do
-      {:ok, output}
-    else
-      {:error, Enum.reverse(errors)}
-    end
+    finalize_validation(errors, output)
   end
 
   defp validate_reliability_config(%Config{} = config) do
-    errors = []
-
-    errors =
-      if not is_nil(config.ensemble) do
-        case validate(config.ensemble) do
-          {:ok, _} -> errors
-          {:error, ens_errors} -> Enum.map(ens_errors, &"ensemble.#{&1}") ++ errors
-        end
-      else
-        errors
-      end
-
-    errors =
-      if not is_nil(config.hedging) do
-        case validate(config.hedging) do
-          {:ok, _} -> errors
-          {:error, hedge_errors} -> Enum.map(hedge_errors, &"hedging.#{&1}") ++ errors
-        end
-      else
-        errors
-      end
-
-    errors =
-      if not is_nil(config.stats) do
-        case validate(config.stats) do
-          {:ok, _} -> errors
-          {:error, stats_errors} -> Enum.map(stats_errors, &"stats.#{&1}") ++ errors
-        end
-      else
-        errors
-      end
-
-    if Enum.empty?(errors) do
-      {:ok, config}
-    else
-      {:error, Enum.reverse(errors)}
-    end
+    []
+    |> validate_optional(config.ensemble, "ensemble")
+    |> validate_optional(config.hedging, "hedging")
+    |> validate_optional(config.stats, "stats")
+    |> validate_optional(config.fairness, "fairness")
+    |> validate_optional(config.guardrails, "guardrails")
+    |> validate_optional(config.feedback, "feedback")
+    |> finalize_validation(config)
   end
 
   defp validate_ensemble(%Ensemble{} = ensemble) do
-    errors = []
-
     valid_strategies = [:none, :majority, :weighted, :best_confidence, :unanimous]
-
-    errors =
-      if ensemble.strategy not in valid_strategies do
-        ["strategy must be one of: #{Enum.join(valid_strategies, ", ")}" | errors]
-      else
-        errors
-      end
 
     valid_execution_modes = [:parallel, :sequential, :hedged, :cascade]
 
-    errors =
-      if ensemble.execution_mode not in valid_execution_modes do
-        ["execution_mode must be one of: #{Enum.join(valid_execution_modes, ", ")}" | errors]
-      else
-        errors
-      end
-
-    if Enum.empty?(errors) do
-      {:ok, ensemble}
-    else
-      {:error, Enum.reverse(errors)}
-    end
+    []
+    |> validate_enum(ensemble.strategy, valid_strategies, "strategy")
+    |> validate_enum(ensemble.execution_mode, valid_execution_modes, "execution_mode")
+    |> finalize_validation(ensemble)
   end
 
   defp validate_hedging(%Hedging{} = hedging) do
-    errors = []
-
     valid_strategies = [:off, :fixed, :percentile, :adaptive, :workload_aware]
 
-    errors =
-      if hedging.strategy not in valid_strategies do
-        ["strategy must be one of: #{Enum.join(valid_strategies, ", ")}" | errors]
-      else
-        errors
-      end
-
-    if Enum.empty?(errors) do
-      {:ok, hedging}
-    else
-      {:error, Enum.reverse(errors)}
-    end
+    []
+    |> validate_enum(hedging.strategy, valid_strategies, "strategy")
+    |> finalize_validation(hedging)
   end
 
   defp validate_stats(%Stats{} = stats) do
-    errors = []
-
-    errors =
-      if not is_nil(stats.alpha) and (stats.alpha < 0 or stats.alpha > 1) do
-        ["alpha must be between 0 and 1" | errors]
-      else
-        errors
-      end
-
-    if Enum.empty?(errors) do
-      {:ok, stats}
-    else
-      {:error, Enum.reverse(errors)}
-    end
+    []
+    |> validate_alpha(stats.alpha)
+    |> finalize_validation(stats)
   end
 
   defp validate_fairness(%Fairness{} = fairness) do
@@ -391,11 +321,7 @@ defmodule CrucibleIR.Validation do
         errors
       end
 
-    if Enum.empty?(errors) do
-      {:ok, model}
-    else
-      {:error, Enum.reverse(errors)}
-    end
+    finalize_validation(errors, model)
   end
 
   defp validate_model_version(%ModelVersion{} = version) do
@@ -427,160 +353,46 @@ defmodule CrucibleIR.Validation do
         end
       end
 
-    if Enum.empty?(errors) do
-      {:ok, version}
-    else
-      {:error, Enum.reverse(errors)}
-    end
+    finalize_validation(errors, version)
   end
 
   defp validate_training_config(%Training.Config{} = config) do
-    errors = []
-
-    errors =
-      if is_nil(config.id) do
-        ["id is required" | errors]
-      else
-        errors
-      end
-
-    errors =
-      if is_nil(config.model_ref) do
-        ["model_ref is required" | errors]
-      else
-        errors
-      end
-
-    errors =
-      if is_nil(config.dataset_ref) do
-        ["dataset_ref is required" | errors]
-      else
-        errors
-      end
-
-    errors =
-      if not is_nil(config.epochs) and config.epochs < 1 do
-        ["epochs must be positive" | errors]
-      else
-        errors
-      end
-
-    errors =
-      if not is_nil(config.batch_size) and config.batch_size < 1 do
-        ["batch_size must be positive" | errors]
-      else
-        errors
-      end
-
-    errors =
-      if not is_nil(config.learning_rate) and config.learning_rate <= 0 do
-        ["learning_rate must be positive" | errors]
-      else
-        errors
-      end
-
-    if Enum.empty?(errors) do
-      {:ok, config}
-    else
-      {:error, Enum.reverse(errors)}
-    end
+    []
+    |> validate_required_field(config.id, "id")
+    |> validate_required_field(config.model_ref, "model_ref")
+    |> validate_required_field(config.dataset_ref, "dataset_ref")
+    |> validate_positive_or_nil(config.epochs, "epochs")
+    |> validate_positive_or_nil(config.batch_size, "batch_size")
+    |> validate_strictly_positive_or_nil(config.learning_rate, "learning_rate")
+    |> finalize_validation(config)
   end
 
   defp validate_training_run(%Training.Run{} = run) do
-    errors = []
-
-    errors =
-      if is_nil(run.id) do
-        ["id is required" | errors]
-      else
-        errors
-      end
-
-    errors =
-      if is_nil(run.config) do
-        ["config is required" | errors]
-      else
-        errors
-      end
-
     valid_statuses = [:pending, :running, :completed, :failed, :cancelled]
 
-    errors =
-      if run.status not in valid_statuses do
-        ["status must be one of: #{Enum.join(valid_statuses, ", ")}" | errors]
-      else
-        errors
-      end
-
-    if Enum.empty?(errors) do
-      {:ok, run}
-    else
-      {:error, Enum.reverse(errors)}
-    end
+    []
+    |> validate_required_field(run.id, "id")
+    |> validate_required_field(run.config, "config")
+    |> validate_enum(run.status, valid_statuses, "status")
+    |> finalize_validation(run)
   end
 
   defp validate_deployment_config(%Deployment.Config{} = config) do
-    errors = []
-
-    errors =
-      if is_nil(config.id) do
-        ["id is required" | errors]
-      else
-        errors
-      end
-
-    errors =
-      if is_nil(config.model_version_id) do
-        ["model_version_id is required" | errors]
-      else
-        errors
-      end
-
-    errors =
-      if not is_nil(config.replicas) and config.replicas < 1 do
-        ["replicas must be positive" | errors]
-      else
-        errors
-      end
-
-    if Enum.empty?(errors) do
-      {:ok, config}
-    else
-      {:error, Enum.reverse(errors)}
-    end
+    []
+    |> validate_required_field(config.id, "id")
+    |> validate_required_field(config.model_version_id, "model_version_id")
+    |> validate_positive_or_nil(config.replicas, "replicas")
+    |> finalize_validation(config)
   end
 
   defp validate_deployment_status(%Deployment.Status{} = status) do
-    errors = []
-
-    errors =
-      if is_nil(status.id) do
-        ["id is required" | errors]
-      else
-        errors
-      end
-
-    errors =
-      if is_nil(status.deployment_id) do
-        ["deployment_id is required" | errors]
-      else
-        errors
-      end
-
     valid_states = [:pending, :deploying, :active, :degraded, :failed, :terminated]
 
-    errors =
-      if status.state not in valid_states do
-        ["state must be one of: #{Enum.join(valid_states, ", ")}" | errors]
-      else
-        errors
-      end
-
-    if Enum.empty?(errors) do
-      {:ok, status}
-    else
-      {:error, Enum.reverse(errors)}
-    end
+    []
+    |> validate_required_field(status.id, "id")
+    |> validate_required_field(status.deployment_id, "deployment_id")
+    |> validate_enum(status.state, valid_states, "state")
+    |> finalize_validation(status)
   end
 
   defp validate_feedback_event(%Feedback.Event{} = event) do
@@ -593,28 +405,78 @@ defmodule CrucibleIR.Validation do
         errors
       end
 
-    if Enum.empty?(errors) do
-      {:ok, event}
-    else
-      {:error, Enum.reverse(errors)}
-    end
+    finalize_validation(errors, event)
   end
 
   defp validate_feedback_config(%Feedback.Config{} = config) do
-    errors = []
+    []
+    |> validate_sampling_rate(config.sampling_rate)
+    |> finalize_validation(config)
+  end
 
-    errors =
-      if not is_nil(config.sampling_rate) and
-           (config.sampling_rate < 0 or config.sampling_rate > 1) do
-        ["sampling_rate must be between 0 and 1" | errors]
-      else
-        errors
-      end
+  defp validate_optional(errors, nil, _prefix), do: errors
 
-    if Enum.empty?(errors) do
-      {:ok, config}
-    else
-      {:error, Enum.reverse(errors)}
+  defp validate_optional(errors, value, prefix) do
+    case validate(value) do
+      {:ok, _} -> errors
+      {:error, nested_errors} -> Enum.map(nested_errors, &"#{prefix}.#{&1}") ++ errors
     end
   end
+
+  defp validate_enum(errors, value, valid_values, field_name) do
+    if value in valid_values do
+      errors
+    else
+      ["#{field_name} must be one of: #{Enum.join(valid_values, ", ")}" | errors]
+    end
+  end
+
+  defp validate_alpha(errors, nil), do: errors
+
+  defp validate_alpha(errors, alpha) do
+    if alpha >= 0 and alpha <= 1 do
+      errors
+    else
+      ["alpha must be between 0 and 1" | errors]
+    end
+  end
+
+  defp validate_required_field(errors, nil, field_name) do
+    ["#{field_name} is required" | errors]
+  end
+
+  defp validate_required_field(errors, _value, _field_name), do: errors
+
+  defp validate_positive_or_nil(errors, nil, _field), do: errors
+
+  defp validate_positive_or_nil(errors, value, field) do
+    if value >= 1 do
+      errors
+    else
+      ["#{field} must be positive" | errors]
+    end
+  end
+
+  defp validate_strictly_positive_or_nil(errors, nil, _field), do: errors
+
+  defp validate_strictly_positive_or_nil(errors, value, field) do
+    if value > 0 do
+      errors
+    else
+      ["#{field} must be positive" | errors]
+    end
+  end
+
+  defp validate_sampling_rate(errors, nil), do: errors
+
+  defp validate_sampling_rate(errors, rate) do
+    if rate >= 0 and rate <= 1 do
+      errors
+    else
+      ["sampling_rate must be between 0 and 1" | errors]
+    end
+  end
+
+  defp finalize_validation([], struct), do: {:ok, struct}
+  defp finalize_validation(errors, _struct), do: {:error, Enum.reverse(errors)}
 end

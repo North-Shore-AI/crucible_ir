@@ -1,9 +1,21 @@
 defmodule CrucibleIR.SerializationTest do
   use ExUnit.Case, async: true
 
-  alias CrucibleIR.{Experiment, BackendRef, StageDef, DatasetRef}
-  alias CrucibleIR.Reliability.{Config, Ensemble, Hedging, Stats}
-  alias CrucibleIR.Serialization
+  alias CrucibleIR.{
+    BackendRef,
+    DatasetRef,
+    Deployment,
+    Experiment,
+    Feedback,
+    ModelRef,
+    ModelVersion,
+    OutputSpec,
+    Serialization,
+    StageDef,
+    Training
+  }
+
+  alias CrucibleIR.Reliability.{Config, Ensemble, Fairness, Guardrail, Hedging, Stats}
 
   describe "to_json/1" do
     test "encodes BackendRef to JSON" do
@@ -328,5 +340,354 @@ defmodule CrucibleIR.SerializationTest do
       assert decoded.reliability.hedging.strategy == :fixed
       assert decoded.reliability.stats.alpha == 0.01
     end
+
+    test "StageDef round-trip preserves options" do
+      original = %StageDef{
+        name: :preprocessing,
+        enabled: false,
+        options: %{"normalize" => true, "steps" => ["trim"]}
+      }
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, StageDef)
+
+      assert decoded.name == original.name
+      assert decoded.enabled == original.enabled
+      assert decoded.options == original.options
+    end
+
+    test "DatasetRef round-trip preserves fields" do
+      original = %DatasetRef{
+        name: "Custom Dataset 2025",
+        provider: :custom,
+        split: :validation,
+        version: "v2",
+        format: :parquet,
+        schema: %{"fields" => ["id", "text"]},
+        options: %{"limit" => 10}
+      }
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, DatasetRef)
+
+      assert decoded.name == original.name
+      assert decoded.provider == original.provider
+      assert decoded.split == original.split
+      assert decoded.format == original.format
+      assert decoded.schema == original.schema
+      assert decoded.options == original.options
+    end
+
+    test "OutputSpec round-trip preserves fields" do
+      original = %OutputSpec{
+        name: :results,
+        formats: [:json, :csv],
+        sink: :s3,
+        options: %{"path" => "/tmp/results"}
+      }
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, OutputSpec)
+
+      assert decoded.name == original.name
+      assert decoded.formats == original.formats
+      assert decoded.sink == original.sink
+      assert decoded.options == original.options
+    end
+
+    test "Reliability.Config round-trip preserves nested configs" do
+      original = %Config{
+        ensemble: %Ensemble{
+          strategy: :weighted,
+          execution_mode: :parallel,
+          models: [:gpt4, :claude],
+          weights: %{gpt4: 0.6, claude: 0.4},
+          timeout_ms: 3_000
+        },
+        hedging: %Hedging{strategy: :percentile, delay_ms: 100, percentile: 0.95},
+        stats: %Stats{alpha: 0.01, tests: [:ttest]},
+        fairness: %Fairness{
+          enabled: true,
+          metrics: [:demographic_parity],
+          group_by: :gender,
+          threshold: 0.8,
+          fail_on_violation: true,
+          options: %{"mode" => "strict"}
+        },
+        guardrails: %Guardrail{profiles: [:strict], pii_detection: true},
+        feedback: %Feedback.Config{enabled: true, sampling_rate: 0.1, storage: :s3}
+      }
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, Config)
+
+      assert decoded.ensemble.strategy == :weighted
+      assert decoded.ensemble.weights == %{gpt4: 0.6, claude: 0.4}
+      assert decoded.hedging.strategy == :percentile
+      assert decoded.stats.tests == [:ttest]
+      assert decoded.fairness.group_by == :gender
+      assert decoded.guardrails.profiles == [:strict]
+      assert decoded.feedback.storage == :s3
+    end
+
+    test "ModelRef round-trip preserves fields" do
+      original = sample_model_ref()
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, ModelRef)
+
+      assert decoded.id == original.id
+      assert decoded.provider == original.provider
+      assert decoded.framework == original.framework
+      assert decoded.architecture == original.architecture
+      assert decoded.task == original.task
+      assert decoded.artifact_uri == original.artifact_uri
+      assert decoded.metadata == original.metadata
+    end
+
+    test "ModelVersion round-trip preserves fields" do
+      original = sample_model_version()
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, ModelVersion)
+
+      assert decoded.id == original.id
+      assert decoded.model_id == original.model_id
+      assert decoded.version == original.version
+      assert decoded.stage == original.stage
+      assert decoded.created_at == original.created_at
+    end
+
+    test "Training.Config round-trip preserves nested references" do
+      original = sample_training_config()
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, Training.Config)
+
+      assert decoded.id == original.id
+      assert decoded.model_ref.id == original.model_ref.id
+      assert decoded.dataset_ref.name == original.dataset_ref.name
+      assert decoded.optimizer == original.optimizer
+      assert decoded.device == original.device
+    end
+
+    test "Training.Run round-trip preserves fields" do
+      training_config = sample_training_config()
+
+      original = %Training.Run{
+        id: :run_001,
+        config: training_config,
+        status: :running,
+        current_epoch: 2,
+        metrics_history: [%{"loss" => 0.5}],
+        best_metrics: %{"loss" => 0.4},
+        checkpoint_uris: ["s3://checkpoints/run_001.pt"],
+        final_model_version: :gpt2_v1,
+        started_at: ~U[2025-12-26 12:00:00Z],
+        completed_at: nil,
+        error_message: nil,
+        options: %{"priority" => "high"}
+      }
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, Training.Run)
+
+      assert decoded.id == original.id
+      assert decoded.status == original.status
+      assert decoded.current_epoch == original.current_epoch
+      assert decoded.started_at == original.started_at
+      assert decoded.final_model_version == original.final_model_version
+    end
+
+    test "Deployment.Config round-trip preserves fields" do
+      original = %Deployment.Config{
+        id: :deploy_prod,
+        model_version_id: :gpt2_v1,
+        replicas: 2,
+        environment: :production,
+        strategy: :canary,
+        target: %{"cluster" => "prod"},
+        resources: %{"cpu" => "2"},
+        scaling: %{"min" => 2},
+        health_check: %{"path" => "/health"},
+        endpoint: %{"path" => "/v1"},
+        metadata: %{"team" => "mlops"},
+        options: %{"note" => "test"}
+      }
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, Deployment.Config)
+
+      assert decoded.id == original.id
+      assert decoded.model_version_id == original.model_version_id
+      assert decoded.environment == original.environment
+      assert decoded.strategy == original.strategy
+      assert decoded.endpoint == original.endpoint
+    end
+
+    test "Deployment.Status round-trip preserves fields" do
+      original = %Deployment.Status{
+        id: :status_001,
+        deployment_id: :deploy_prod,
+        state: :active,
+        ready_replicas: 2,
+        total_replicas: 3,
+        endpoint_url: "https://api.example.com",
+        traffic_percent: 80.0,
+        health: :healthy,
+        last_health_check: ~U[2025-12-26 12:05:00Z],
+        error_message: nil,
+        created_at: ~U[2025-12-26 12:00:00Z],
+        updated_at: ~U[2025-12-26 12:10:00Z]
+      }
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, Deployment.Status)
+
+      assert decoded.id == original.id
+      assert decoded.deployment_id == original.deployment_id
+      assert decoded.state == original.state
+      assert decoded.health == original.health
+      assert decoded.last_health_check == original.last_health_check
+      assert decoded.updated_at == original.updated_at
+    end
+
+    test "Feedback.Config round-trip preserves fields" do
+      original = %Feedback.Config{
+        enabled: true,
+        sampling_rate: 0.2,
+        feedback_types: [:thumbs, :rating],
+        storage: :s3,
+        retention_days: 30,
+        anonymize_pii: false,
+        drift_detection: %{"window" => 7},
+        retraining_trigger: %{"threshold" => 0.1},
+        options: %{"bucket" => "feedback"}
+      }
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, Feedback.Config)
+
+      assert decoded.enabled == original.enabled
+      assert decoded.sampling_rate == original.sampling_rate
+      assert decoded.feedback_types == original.feedback_types
+      assert decoded.storage == original.storage
+      assert decoded.drift_detection == original.drift_detection
+    end
+
+    test "Feedback.Event round-trip preserves fields" do
+      original = %Feedback.Event{
+        id: "evt_123",
+        deployment_id: :deploy_prod,
+        model_version: "1.0.0",
+        input: %{"prompt" => "hi"},
+        output: %{"text" => "hello"},
+        feedback_type: :thumbs,
+        feedback_value: :up,
+        user_id: "user_1",
+        session_id: "sess_1",
+        latency_ms: 120,
+        timestamp: ~U[2025-12-26 12:00:00Z],
+        metadata: %{"lang" => "en"}
+      }
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, Feedback.Event)
+
+      assert decoded.id == original.id
+      assert decoded.deployment_id == original.deployment_id
+      assert decoded.feedback_type == original.feedback_type
+      assert decoded.timestamp == original.timestamp
+      assert decoded.metadata == original.metadata
+    end
+
+    test "Experiment round-trip preserves model lifecycle fields" do
+      model_ref = sample_model_ref()
+      training_config = sample_training_config()
+      model_version = sample_model_version()
+
+      original = %Experiment{
+        id: :training_exp,
+        backend: %BackendRef{id: :gpt4},
+        pipeline: [%StageDef{name: :train}],
+        experiment_type: :training,
+        model_version: model_version,
+        training_config: training_config,
+        baseline: model_ref,
+        outputs: [%OutputSpec{name: :results, formats: [:json]}]
+      }
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, Experiment)
+
+      assert decoded.experiment_type == original.experiment_type
+      assert decoded.model_version.id == model_version.id
+      assert decoded.training_config.id == training_config.id
+      assert decoded.baseline.id == model_ref.id
+      assert hd(decoded.outputs).formats == [:json]
+    end
+  end
+
+  defp sample_model_ref do
+    %ModelRef{
+      id: :gpt2,
+      name: "GPT-2",
+      version: "1.0.0",
+      provider: :huggingface,
+      framework: :pytorch,
+      architecture: :transformer,
+      task: :text_generation,
+      artifact_uri: "s3://models/gpt2",
+      metadata: %{"license" => "mit"},
+      options: %{"revision" => "main"}
+    }
+  end
+
+  defp sample_dataset_ref do
+    %DatasetRef{
+      name: :wikitext,
+      provider: :huggingface,
+      split: :train,
+      options: %{"limit" => 100}
+    }
+  end
+
+  defp sample_training_config do
+    %Training.Config{
+      id: :train_gpt2,
+      model_ref: sample_model_ref(),
+      dataset_ref: sample_dataset_ref(),
+      epochs: 5,
+      batch_size: 16,
+      learning_rate: 0.0005,
+      optimizer: :adamw,
+      loss_function: :cross_entropy,
+      metrics: [:loss],
+      validation_split: 0.1,
+      device: :cuda,
+      seed: 42,
+      mixed_precision: true,
+      gradient_clipping: 1.0,
+      early_stopping: %{"patience" => 3},
+      checkpoint_every: 100,
+      options: %{"notes" => "fast"}
+    }
+  end
+
+  defp sample_model_version do
+    %ModelVersion{
+      id: :gpt2_v1,
+      model_id: :gpt2,
+      version: "1.0.0",
+      stage: :production,
+      training_run_id: :run_001,
+      metrics: %{"loss" => 0.1},
+      artifact_uri: "s3://models/gpt2/v1",
+      parent_version: "0.9.0",
+      description: "baseline",
+      created_at: ~U[2025-12-26 12:00:00Z],
+      created_by: "mlops",
+      options: %{"notes" => "promoted"}
+    }
   end
 end

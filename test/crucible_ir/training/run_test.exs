@@ -1,8 +1,8 @@
 defmodule CrucibleIR.Training.RunTest do
   use ExUnit.Case, async: true
 
+  alias CrucibleIR.{DatasetRef, ModelRef}
   alias CrucibleIR.Training.{Config, Run}
-  alias CrucibleIR.{ModelRef, DatasetRef}
 
   defp sample_config do
     %Config{

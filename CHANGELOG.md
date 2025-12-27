@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2025-12-26
+
+### Added
+
+- Examples directory with API integration demos (backends, datasets, model registry, training, deployment, feedback, outputs, serialization)
+- IR boundary documentation (`docs/20251226/ir_boundary/`)
+- JSON round-trip tests for model lifecycle, deployment, feedback, and output specs
+
+### Changed
+
+- Serialization now decodes experiment model lifecycle fields and reliability feedback configs
+- Serialization now normalizes dataset formats, stage modules, backend deployment IDs, and ensemble weights
+- Documentation clarifies the IR boundary and serialization contract
+
+## [0.2.0] - 2025-12-25
+
+### Added
+
+- **Model Lifecycle Structs**
+  - `CrucibleIR.ModelRef` - Model reference with provider, framework, and artifact URI
+  - `CrucibleIR.ModelVersion` - Model version with stage, metrics, and lineage tracking
+  - `CrucibleIR.Training.Config` - Training configuration (epochs, batch size, optimizer, device)
+  - `CrucibleIR.Training.Run` - Training run tracking (status, metrics history, checkpoints)
+  - `CrucibleIR.Deployment.Config` - Deployment configuration (environment, strategy, scaling)
+  - `CrucibleIR.Deployment.Status` - Deployment status (state, health, replicas)
+  - `CrucibleIR.Feedback.Config` - Feedback collection configuration (sampling, storage, drift detection)
+  - `CrucibleIR.Feedback.Event` - Feedback event (input, output, user feedback, latency)
+
 ## [0.1.1] - 2025-11-26
 
 ### Added
@@ -109,6 +137,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Required fields enforced with `@enforce_keys`
 - Optional fields default to `nil` or sensible defaults
 
-[Unreleased]: https://github.com/North-Shore-AI/crucible_ir/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/North-Shore-AI/crucible_ir/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/North-Shore-AI/crucible_ir/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/North-Shore-AI/crucible_ir/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/North-Shore-AI/crucible_ir/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/North-Shore-AI/crucible_ir/releases/tag/v0.1.0

@@ -23,11 +23,20 @@ defmodule CrucibleIR.Builder do
   for method chaining. Use `build/1` at the end to validate and finalize.
   """
 
-  alias CrucibleIR.{Experiment, BackendRef, StageDef, DatasetRef, OutputSpec}
-  alias CrucibleIR.{ModelRef, ModelVersion}
-  alias CrucibleIR.Training
   alias CrucibleIR.Feedback
-  alias CrucibleIR.Reliability.{Config, Ensemble, Hedging, Stats, Fairness, Guardrail}
+
+  alias CrucibleIR.{
+    BackendRef,
+    DatasetRef,
+    Experiment,
+    ModelRef,
+    ModelVersion,
+    OutputSpec,
+    StageDef
+  }
+
+  alias CrucibleIR.Reliability.{Config, Ensemble, Fairness, Guardrail, Hedging, Stats}
+  alias CrucibleIR.Training
   alias CrucibleIR.Validation
 
   @type builder_experiment :: %Experiment{
