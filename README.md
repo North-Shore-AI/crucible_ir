@@ -1,4 +1,6 @@
-![CrucibleIR Hexagonal Mark](assets/crucible_ir.svg)
+<p align="center">
+  <img src="assets/crucible_ir.svg" alt="CrucibleIR Hexagonal Mark">
+</p>
 
 # CrucibleIR
 [![Hex.pm](https://img.shields.io/hexpm/v/crucible_ir.svg)](https://hex.pm/packages/crucible_ir)
