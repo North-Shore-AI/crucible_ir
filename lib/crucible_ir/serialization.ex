@@ -36,6 +36,8 @@ defmodule CrucibleIR.Serialization do
   alias CrucibleIR.Deployment
   alias CrucibleIR.Feedback
 
+  alias CrucibleIR.Backend.{Capabilities, Completion, Options, Prompt}
+
   alias CrucibleIR.{
     BackendRef,
     DatasetRef,
@@ -51,6 +53,15 @@ defmodule CrucibleIR.Serialization do
 
   @experiment_fields ~w(id backend pipeline description owner tags metadata dataset reliability outputs created_at updated_at experiment_type model_version training_config baseline)a
   @backend_ref_fields ~w(id profile options model_version endpoint_url deployment_id fallback)a
+  @backend_prompt_fields ~w(messages system tools tool_choice options request_id trace_id metadata)a
+  @backend_prompt_message_fields ~w(role content name tool_calls tool_call_id)a
+  @backend_prompt_content_part_fields ~w(type text url media_type base64 format tool_call_id content)a
+  @backend_tool_call_fields ~w(id name arguments)a
+  @backend_options_fields ~w(model temperature max_tokens top_p top_k frequency_penalty presence_penalty stop response_format json_schema stream cache_control extended_thinking thinking_budget_tokens seed timeout_ms extra)a
+  @backend_completion_fields ~w(choices model usage latency_ms time_to_first_token_ms request_id trace_id raw_response metadata)a
+  @backend_completion_choice_fields ~w(index message finish_reason thinking)a
+  @backend_completion_usage_fields ~w(prompt_tokens completion_tokens total_tokens thinking_tokens cached_tokens)a
+  @backend_capabilities_fields ~w(backend_id provider models default_model supports_streaming supports_tools supports_vision supports_audio supports_json_mode supports_extended_thinking supports_caching max_tokens max_context_length max_images_per_request requests_per_minute tokens_per_minute cost_per_million_input cost_per_million_output metadata)a
   @stage_def_fields ~w(name module options enabled)a
   @dataset_ref_fields ~w(name provider split options version format schema)a
   @output_spec_fields ~w(name formats sink options)a
@@ -164,6 +175,50 @@ defmodule CrucibleIR.Serialization do
         |> convert_backend_ref_fields()
 
       struct!(BackendRef, attrs)
+    end)
+  end
+
+  def from_map(map, Prompt) when is_map(map) do
+    try_from_map(fn ->
+      attrs =
+        map
+        |> atomize_keys(@backend_prompt_fields)
+        |> convert_prompt_fields()
+
+      struct!(Prompt, attrs)
+    end)
+  end
+
+  def from_map(map, Options) when is_map(map) do
+    try_from_map(fn ->
+      attrs =
+        map
+        |> atomize_keys(@backend_options_fields)
+        |> convert_options_fields()
+
+      struct!(Options, attrs)
+    end)
+  end
+
+  def from_map(map, Completion) when is_map(map) do
+    try_from_map(fn ->
+      attrs =
+        map
+        |> atomize_keys(@backend_completion_fields)
+        |> convert_completion_fields()
+
+      struct!(Completion, attrs)
+    end)
+  end
+
+  def from_map(map, Capabilities) when is_map(map) do
+    try_from_map(fn ->
+      attrs =
+        map
+        |> atomize_keys(@backend_capabilities_fields)
+        |> convert_capabilities_fields()
+
+      struct!(Capabilities, attrs)
     end)
   end
 
@@ -423,6 +478,119 @@ defmodule CrucibleIR.Serialization do
       %{} = map -> from_map!(map, BackendRef)
       value -> value
     end)
+  end
+
+  defp convert_prompt_fields(attrs) do
+    attrs
+    |> convert_field(:messages, &convert_prompt_messages/1)
+    |> convert_field(:tool_choice, &normalize_tool_choice/1)
+    |> convert_field(:options, fn
+      %{} = map -> from_map!(map, Options)
+      %Options{} = options -> options
+      value -> value
+    end)
+  end
+
+  defp convert_prompt_messages(messages) when is_list(messages) do
+    Enum.map(messages, &convert_prompt_message/1)
+  end
+
+  defp convert_prompt_messages(value), do: value
+
+  defp convert_prompt_message(%{} = message) do
+    message
+    |> atomize_keys(@backend_prompt_message_fields)
+    |> convert_field(:role, &to_existing_atom/1)
+    |> convert_field(:content, &convert_prompt_content/1)
+    |> convert_field(:tool_calls, &convert_tool_calls/1)
+  end
+
+  defp convert_prompt_message({role, content}) do
+    %{role: normalize_role(role), content: content}
+  end
+
+  defp convert_prompt_message(value), do: value
+
+  defp convert_prompt_content(parts) when is_list(parts) do
+    Enum.map(parts, &convert_prompt_content_part/1)
+  end
+
+  defp convert_prompt_content(value), do: value
+
+  defp convert_prompt_content_part(%{} = part) do
+    part
+    |> atomize_keys(@backend_prompt_content_part_fields)
+    |> convert_field(:type, &to_existing_atom/1)
+  end
+
+  defp convert_prompt_content_part(value), do: value
+
+  defp convert_tool_calls(calls) when is_list(calls) do
+    Enum.map(calls, &convert_tool_call/1)
+  end
+
+  defp convert_tool_calls(value), do: value
+
+  defp convert_tool_call(%{} = call) do
+    atomize_keys(call, @backend_tool_call_fields)
+  end
+
+  defp convert_tool_call(value), do: value
+
+  defp normalize_role(role) when is_atom(role), do: role
+  defp normalize_role("system"), do: :system
+  defp normalize_role("user"), do: :user
+  defp normalize_role("assistant"), do: :assistant
+  defp normalize_role("tool"), do: :tool
+  defp normalize_role(value), do: value
+
+  defp normalize_tool_choice(%{} = choice) do
+    case choice do
+      %{"name" => name} -> %{name: name}
+      %{name: name} -> %{name: name}
+      _ -> choice
+    end
+  end
+
+  defp normalize_tool_choice(value) when is_binary(value), do: to_existing_atom(value)
+  defp normalize_tool_choice(value), do: value
+
+  defp convert_options_fields(attrs) do
+    attrs
+    |> convert_field(:response_format, &to_existing_atom/1)
+    |> convert_field(:cache_control, &to_existing_atom/1)
+  end
+
+  defp convert_completion_fields(attrs) do
+    attrs
+    |> convert_field(:choices, &convert_completion_choices/1)
+    |> convert_field(:usage, &convert_completion_usage/1)
+  end
+
+  defp convert_completion_choices(choices) when is_list(choices) do
+    Enum.map(choices, &convert_completion_choice/1)
+  end
+
+  defp convert_completion_choices(value), do: value
+
+  defp convert_completion_choice(%{} = choice) do
+    choice
+    |> atomize_keys(@backend_completion_choice_fields)
+    |> convert_field(:finish_reason, &to_existing_atom/1)
+    |> convert_field(:message, &convert_prompt_message/1)
+  end
+
+  defp convert_completion_choice(value), do: value
+
+  defp convert_completion_usage(%{} = usage) do
+    atomize_keys(usage, @backend_completion_usage_fields)
+  end
+
+  defp convert_completion_usage(value), do: value
+
+  defp convert_capabilities_fields(attrs) do
+    attrs
+    |> convert_field(:backend_id, &to_existing_atom/1)
   end
 
   defp convert_stage_def_fields(attrs) do

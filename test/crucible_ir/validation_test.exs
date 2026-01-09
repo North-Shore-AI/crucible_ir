@@ -2,7 +2,11 @@ defmodule CrucibleIR.ValidationTest do
   use ExUnit.Case, async: true
 
   alias CrucibleIR.{BackendRef, DatasetRef, Experiment, OutputSpec, StageDef}
+
+  alias CrucibleIR.Backend.{Capabilities, Completion, Options, Prompt}
+
   alias CrucibleIR.Reliability.{Config, Ensemble, Fairness, Guardrail, Hedging, Stats}
+
   alias CrucibleIR.Validation
 
   describe "validate/1 for Experiment" do
@@ -277,6 +281,74 @@ defmodule CrucibleIR.ValidationTest do
       assert {:error, errors} = Validation.validate(config)
 
       assert "ensemble.strategy must be one of: none, majority, weighted, best_confidence, unanimous" in errors
+    end
+  end
+
+  describe "validate/1 for Backend.Prompt" do
+    test "returns {:ok, prompt} for valid prompt" do
+      prompt = %Prompt{messages: [%{role: :user, content: "Hello"}]}
+      assert {:ok, ^prompt} = Validation.validate(prompt)
+    end
+
+    test "returns error for invalid tool_choice" do
+      prompt = %Prompt{
+        messages: [%{role: :user, content: "Hello"}],
+        tool_choice: :invalid
+      }
+
+      assert {:error, errors} = Validation.validate(prompt)
+      assert "tool_choice must be one of: auto, none, required, or %{name: string}" in errors
+    end
+  end
+
+  describe "validate/1 for Backend.Options" do
+    test "returns {:ok, options} for valid options" do
+      options = %Options{model: "gpt-4o", response_format: :json}
+      assert {:ok, ^options} = Validation.validate(options)
+    end
+
+    test "returns error for invalid response_format" do
+      options = %Options{response_format: :xml}
+      assert {:error, errors} = Validation.validate(options)
+      assert "response_format must be one of: text, json, json_schema" in errors
+    end
+  end
+
+  describe "validate/1 for Backend.Completion" do
+    test "returns {:ok, completion} for valid completion" do
+      completion = %Completion{
+        model: "gpt-4o",
+        choices: [
+          %{index: 0, message: %{role: :assistant, content: "Hi"}, finish_reason: :stop}
+        ]
+      }
+
+      assert {:ok, ^completion} = Validation.validate(completion)
+    end
+
+    test "returns error for invalid finish_reason" do
+      completion = %Completion{
+        choices: [
+          %{index: 0, message: %{role: :assistant, content: "Hi"}, finish_reason: :invalid}
+        ]
+      }
+
+      assert {:error, errors} = Validation.validate(completion)
+
+      assert "choices[0].finish_reason must be one of: stop, length, tool_calls, content_filter, error" in errors
+    end
+  end
+
+  describe "validate/1 for Backend.Capabilities" do
+    test "returns {:ok, capabilities} for valid capabilities" do
+      caps = %Capabilities{backend_id: :openai, provider: "openai"}
+      assert {:ok, ^caps} = Validation.validate(caps)
+    end
+
+    test "returns error for missing backend_id" do
+      caps = %Capabilities{backend_id: nil, provider: "openai"}
+      assert {:error, errors} = Validation.validate(caps)
+      assert "backend_id is required" in errors
     end
   end
 

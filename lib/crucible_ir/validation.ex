@@ -36,6 +36,8 @@ defmodule CrucibleIR.Validation do
   alias CrucibleIR.Deployment
   alias CrucibleIR.Feedback
 
+  alias CrucibleIR.Backend.{Capabilities, Completion, Options, Prompt}
+
   alias CrucibleIR.{
     BackendRef,
     DatasetRef,
@@ -75,6 +77,10 @@ defmodule CrucibleIR.Validation do
   @spec validate(struct()) :: {:ok, struct()} | {:error, [String.t()]}
   def validate(%Experiment{} = exp), do: validate_experiment(exp)
   def validate(%BackendRef{} = backend), do: validate_backend_ref(backend)
+  def validate(%Prompt{} = prompt), do: validate_backend_prompt(prompt)
+  def validate(%Options{} = options), do: validate_backend_options(options)
+  def validate(%Completion{} = completion), do: validate_backend_completion(completion)
+  def validate(%Capabilities{} = capabilities), do: validate_backend_capabilities(capabilities)
   def validate(%StageDef{} = stage), do: validate_stage_def(stage)
   def validate(%DatasetRef{} = dataset), do: validate_dataset_ref(dataset)
   def validate(%OutputSpec{} = output), do: validate_output_spec(output)
@@ -224,6 +230,50 @@ defmodule CrucibleIR.Validation do
       end
 
     finalize_validation(errors, backend)
+  end
+
+  defp validate_backend_prompt(%Prompt{} = prompt) do
+    []
+    |> validate_prompt_messages(prompt.messages)
+    |> validate_prompt_tool_choice(prompt.tool_choice)
+    |> validate_optional(prompt.options, "options")
+    |> finalize_validation(prompt)
+  end
+
+  defp validate_backend_options(%Options{} = options) do
+    []
+    |> validate_response_format(options.response_format)
+    |> validate_cache_control(options.cache_control)
+    |> validate_non_negative_integer(options.max_tokens, "max_tokens")
+    |> validate_non_negative_integer(options.top_k, "top_k")
+    |> validate_non_negative_integer(options.thinking_budget_tokens, "thinking_budget_tokens")
+    |> validate_non_negative_integer(options.timeout_ms, "timeout_ms")
+    |> validate_stop_sequences(options.stop)
+    |> validate_json_schema_requirement(options.response_format, options.json_schema)
+    |> finalize_validation(options)
+  end
+
+  defp validate_backend_completion(%Completion{} = completion) do
+    []
+    |> validate_completion_choices(completion.choices)
+    |> finalize_validation(completion)
+  end
+
+  defp validate_backend_capabilities(%Capabilities{} = capabilities) do
+    []
+    |> validate_required_field(capabilities.backend_id, "backend_id")
+    |> validate_required_field(capabilities.provider, "provider")
+    |> validate_boolean_field(capabilities.supports_streaming, "supports_streaming")
+    |> validate_boolean_field(capabilities.supports_tools, "supports_tools")
+    |> validate_boolean_field(capabilities.supports_vision, "supports_vision")
+    |> validate_boolean_field(capabilities.supports_audio, "supports_audio")
+    |> validate_boolean_field(capabilities.supports_json_mode, "supports_json_mode")
+    |> validate_boolean_field(
+      capabilities.supports_extended_thinking,
+      "supports_extended_thinking"
+    )
+    |> validate_boolean_field(capabilities.supports_caching, "supports_caching")
+    |> finalize_validation(capabilities)
   end
 
   defp validate_stage_def(%StageDef{} = stage) do
@@ -475,6 +525,189 @@ defmodule CrucibleIR.Validation do
     else
       ["sampling_rate must be between 0 and 1" | errors]
     end
+  end
+
+  defp validate_prompt_messages(errors, messages) when is_list(messages) do
+    Enum.reduce(Enum.with_index(messages), errors, fn {message, index}, acc ->
+      validate_prompt_message(acc, message, index)
+    end)
+  end
+
+  defp validate_prompt_messages(errors, _messages) do
+    ["messages must be a list" | errors]
+  end
+
+  defp validate_prompt_message(errors, %{} = message, index) do
+    errors
+    |> validate_prompt_message_role(message, index)
+    |> validate_prompt_message_content(message, index)
+  end
+
+  defp validate_prompt_message(errors, _message, index) do
+    ["messages[#{index}] must be a map" | errors]
+  end
+
+  defp validate_prompt_message_role(errors, message, index) do
+    valid_roles = [:system, :user, :assistant, :tool]
+    role = Map.get(message, :role) || Map.get(message, "role")
+
+    cond do
+      role in valid_roles ->
+        errors
+
+      is_nil(role) ->
+        ["messages[#{index}].role is required" | errors]
+
+      true ->
+        ["messages[#{index}].role must be one of: system, user, assistant, tool" | errors]
+    end
+  end
+
+  defp validate_prompt_message_content(errors, message, index) do
+    content = Map.get(message, :content) || Map.get(message, "content")
+
+    cond do
+      is_binary(content) ->
+        errors
+
+      is_list(content) ->
+        validate_prompt_content_parts(errors, content, index)
+
+      is_nil(content) ->
+        ["messages[#{index}].content is required" | errors]
+
+      true ->
+        ["messages[#{index}].content must be a string or list" | errors]
+    end
+  end
+
+  defp validate_prompt_content_parts(errors, parts, index) do
+    Enum.reduce(Enum.with_index(parts), errors, fn {part, part_index}, acc ->
+      validate_prompt_content_part(acc, part, index, part_index)
+    end)
+  end
+
+  defp validate_prompt_content_part(errors, %{} = part, index, part_index) do
+    valid_types = [:text, :image, :audio, :tool_result]
+    part_type = Map.get(part, :type) || Map.get(part, "type")
+
+    if part_type in valid_types do
+      errors
+    else
+      [
+        "messages[#{index}].content[#{part_index}].type must be one of: text, image, audio, tool_result"
+        | errors
+      ]
+    end
+  end
+
+  defp validate_prompt_content_part(errors, _part, index, part_index) do
+    ["messages[#{index}].content[#{part_index}] must be a map" | errors]
+  end
+
+  defp validate_prompt_tool_choice(errors, nil), do: errors
+
+  defp validate_prompt_tool_choice(errors, choice) when choice in [:auto, :none, :required] do
+    errors
+  end
+
+  defp validate_prompt_tool_choice(errors, %{"name" => name}) when is_binary(name), do: errors
+  defp validate_prompt_tool_choice(errors, %{name: name}) when is_binary(name), do: errors
+
+  defp validate_prompt_tool_choice(errors, _choice) do
+    ["tool_choice must be one of: auto, none, required, or %{name: string}" | errors]
+  end
+
+  defp validate_response_format(errors, nil), do: errors
+
+  defp validate_response_format(errors, value) do
+    valid_formats = [:text, :json, :json_schema]
+
+    if value in valid_formats do
+      errors
+    else
+      ["response_format must be one of: text, json, json_schema" | errors]
+    end
+  end
+
+  defp validate_cache_control(errors, nil), do: errors
+
+  defp validate_cache_control(errors, value) do
+    if value in [:ephemeral] do
+      errors
+    else
+      ["cache_control must be one of: ephemeral" | errors]
+    end
+  end
+
+  defp validate_non_negative_integer(errors, nil, _field), do: errors
+
+  defp validate_non_negative_integer(errors, value, field) do
+    if is_integer(value) and value >= 0 do
+      errors
+    else
+      ["#{field} must be a non-negative integer" | errors]
+    end
+  end
+
+  defp validate_stop_sequences(errors, nil), do: errors
+
+  defp validate_stop_sequences(errors, stop) when is_list(stop) do
+    if Enum.all?(stop, &is_binary/1) do
+      errors
+    else
+      ["stop must be a list of strings" | errors]
+    end
+  end
+
+  defp validate_stop_sequences(errors, _stop) do
+    ["stop must be a list of strings" | errors]
+  end
+
+  defp validate_json_schema_requirement(errors, :json_schema, nil) do
+    ["json_schema is required when response_format is json_schema" | errors]
+  end
+
+  defp validate_json_schema_requirement(errors, _format, _schema), do: errors
+
+  defp validate_completion_choices(errors, choices) when is_list(choices) do
+    Enum.reduce(Enum.with_index(choices), errors, fn {choice, index}, acc ->
+      validate_completion_choice(acc, choice, index)
+    end)
+  end
+
+  defp validate_completion_choices(errors, _choices) do
+    ["choices must be a list" | errors]
+  end
+
+  defp validate_completion_choice(errors, %{} = choice, index) do
+    finish_reason = Map.get(choice, :finish_reason) || Map.get(choice, "finish_reason")
+    validate_completion_finish_reason(errors, finish_reason, index)
+  end
+
+  defp validate_completion_choice(errors, _choice, index) do
+    ["choices[#{index}] must be a map" | errors]
+  end
+
+  defp validate_completion_finish_reason(errors, nil, _index), do: errors
+
+  defp validate_completion_finish_reason(errors, value, index) do
+    valid_reasons = [:stop, :length, :tool_calls, :content_filter, :error]
+
+    if value in valid_reasons do
+      errors
+    else
+      [
+        "choices[#{index}].finish_reason must be one of: stop, length, tool_calls, content_filter, error"
+        | errors
+      ]
+    end
+  end
+
+  defp validate_boolean_field(errors, value, _field) when is_boolean(value), do: errors
+
+  defp validate_boolean_field(errors, _value, field) do
+    ["#{field} must be a boolean" | errors]
   end
 
   defp finalize_validation([], struct), do: {:ok, struct}

@@ -22,6 +22,7 @@ Full docs: https://hexdocs.pm/crucible_ir
 ## Features
 
 - **Experiment Definition**: Complete experiment specifications with backends, pipelines, and datasets
+- **Backend Contracts**: Prompt/Completion IR with capabilities and options for backend calls
 - **Reliability Configurations**: Ensemble voting, hedging, statistical testing, fairness, and guardrails
 - **Validation**: Structural validation for IR structs with detailed error messages (no stage option validation)
 - **JSON Serialization**: Bidirectional JSON conversion with automatic type handling
@@ -37,7 +38,7 @@ Add `crucible_ir` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:crucible_ir, "~> 0.2.1"}
+    {:crucible_ir, "~> 0.3.0"}
   ]
 end
 ```
@@ -85,6 +86,28 @@ experiment = %{experiment |
 {:ok, json} = Jason.encode(experiment)
 ```
 
+## Backend IR Quick Start
+
+```elixir
+alias CrucibleIR.Backend.{Prompt, Options, Completion, Capabilities}
+
+prompt = %Prompt{
+  messages: [%{role: :user, content: "Summarize this text."}],
+  options: %Options{model: "gpt-4o", temperature: 0.2, response_format: :text}
+}
+
+completion = %Completion{
+  model: "gpt-4o",
+  choices: [
+    %{index: 0, message: %{role: :assistant, content: "Summary..."}, finish_reason: :stop}
+  ]
+}
+
+caps = %Capabilities{backend_id: :openai, provider: "openai", models: ["gpt-4o"]}
+
+{:ok, json} = Jason.encode(prompt)
+```
+
 ## Examples Directory
 
 See `examples/README.md` for a full set of API integration examples and setup
@@ -108,6 +131,13 @@ notes for accounts and keys.
 - **`StageDef`** - Processing stage definition
 - **`OutputSpec`** - Output specification
 
+### Backend IR
+
+- **`Backend.Prompt`** - Backend input contract
+- **`Backend.Options`** - Backend generation options
+- **`Backend.Completion`** - Backend output contract
+- **`Backend.Capabilities`** - Backend feature discovery
+
 ### Reliability Mechanisms
 
 - **`Reliability.Config`** - Container for all reliability configurations
@@ -124,6 +154,10 @@ notes for accounts and keys.
 - **DatasetRef**: required `name`; optional `provider` (default `:crucible_datasets`), `split` (default `:train`), `options`.
 - **StageDef**: required `name`; optional `module`, `options`, `enabled` (default `true`).
 - **OutputSpec**: required `name`; optional `formats` (default `[:markdown]`), `sink` (default `:file`), `options`.
+- **Backend.Prompt**: optional `messages`, `system`, `tools`, `tool_choice`, `options`, `request_id`, `trace_id`, `metadata`.
+- **Backend.Options**: optional `model`, `temperature`, `max_tokens`, `top_p`, `top_k`, `frequency_penalty`, `presence_penalty`, `stop`, `response_format`, `json_schema`, `stream`, `cache_control`, `extended_thinking`, `thinking_budget_tokens`, `seed`, `timeout_ms`, `extra`.
+- **Backend.Completion**: optional `choices`, `model`, `usage`, `latency_ms`, `time_to_first_token_ms`, `request_id`, `trace_id`, `raw_response`, `metadata`.
+- **Backend.Capabilities**: required `backend_id`, `provider`; optional `models`, `default_model`, `supports_streaming`, `supports_tools`, `supports_vision`, `supports_audio`, `supports_json_mode`, `supports_extended_thinking`, `supports_caching`, `max_tokens`, `max_context_length`, `max_images_per_request`, `requests_per_minute`, `tokens_per_minute`, `cost_per_million_input`, `cost_per_million_output`, `metadata`.
 - **Reliability.Config**: optional `ensemble`, `hedging`, `stats`, `fairness`, `guardrails`.
   - **Ensemble**: `strategy` (default `:none`), `execution_mode` (default `:parallel`), `models`, `weights`, `min_agreement`, `timeout_ms`, `options`.
   - **Hedging**: `strategy` (default `:off`), `delay_ms`, `percentile`, `max_hedges`, `budget_percent`, `options`.

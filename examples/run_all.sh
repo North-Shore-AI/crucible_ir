@@ -14,3 +14,4 @@ mix run examples/06_deployment_config_and_status.exs
 mix run examples/07_feedback_storage.exs
 mix run examples/08_reliability_and_guardrails.exs
 mix run examples/09_serialization_round_trip.exs
+mix run examples/10_backend_ir_contract.exs

@@ -15,6 +15,8 @@ defmodule CrucibleIR.SerializationTest do
     Training
   }
 
+  alias CrucibleIR.Backend.{Capabilities, Completion, Options, Prompt}
+
   alias CrucibleIR.Reliability.{Config, Ensemble, Fairness, Guardrail, Hedging, Stats}
 
   describe "to_json/1" do
@@ -42,6 +44,20 @@ defmodule CrucibleIR.SerializationTest do
 
       assert is_binary(json)
       assert json =~ "mmlu"
+    end
+
+    test "encodes Backend Prompt to JSON" do
+      prompt = %Prompt{
+        messages: [%{role: :user, content: "Hello"}],
+        options: %Options{model: "gpt-4o"}
+      }
+
+      json = Serialization.to_json(prompt)
+
+      assert is_binary(json)
+      assert json =~ "messages"
+      assert json =~ "Hello"
+      assert json =~ "gpt-4o"
     end
 
     test "encodes Experiment to JSON" do
@@ -148,6 +164,62 @@ defmodule CrucibleIR.SerializationTest do
       {:ok, dataset} = Serialization.from_json(json, DatasetRef)
 
       assert dataset.name == "Custom Dataset 2024"
+    end
+  end
+
+  describe "from_json/2 for Backend Prompt" do
+    test "decodes JSON to Prompt" do
+      json =
+        ~s({"messages":[{"role":"user","content":"Hello"}],"options":{"model":"gpt-4o","stream":true}})
+
+      {:ok, prompt} = Serialization.from_json(json, Prompt)
+
+      assert %Prompt{} = prompt
+      assert hd(prompt.messages).role == :user
+      assert hd(prompt.messages).content == "Hello"
+      assert prompt.options.model == "gpt-4o"
+      assert prompt.options.stream == true
+    end
+  end
+
+  describe "from_json/2 for Backend Options" do
+    test "decodes JSON to Options" do
+      json = ~s({"model":"gpt-4o","temperature":0.2,"response_format":"json"})
+      {:ok, options} = Serialization.from_json(json, Options)
+
+      assert %Options{} = options
+      assert options.model == "gpt-4o"
+      assert options.temperature == 0.2
+      assert options.response_format == :json
+    end
+  end
+
+  describe "from_json/2 for Backend Completion" do
+    test "decodes JSON to Completion" do
+      json =
+        ~s({"model":"gpt-4o","choices":[{"index":0,"message":{"role":"assistant","content":"Hi"},"finish_reason":"stop"}]})
+
+      {:ok, completion} = Serialization.from_json(json, Completion)
+
+      assert %Completion{} = completion
+      assert completion.model == "gpt-4o"
+      assert hd(completion.choices).finish_reason == :stop
+      assert hd(completion.choices).message.role == :assistant
+    end
+  end
+
+  describe "from_json/2 for Backend Capabilities" do
+    test "decodes JSON to Capabilities" do
+      json =
+        ~s({"backend_id":"openai","provider":"openai","models":["gpt-4o"],"supports_streaming":true})
+
+      {:ok, caps} = Serialization.from_json(json, Capabilities)
+
+      assert %Capabilities{} = caps
+      assert caps.backend_id == :openai
+      assert caps.provider == "openai"
+      assert caps.models == ["gpt-4o"]
+      assert caps.supports_streaming == true
     end
   end
 
@@ -258,6 +330,28 @@ defmodule CrucibleIR.SerializationTest do
       assert backend.profile == :fast
     end
 
+    test "converts map to Backend Prompt" do
+      map = %{
+        "messages" => [%{"role" => "user", "content" => "Hello"}],
+        "options" => %{"model" => "gpt-4o"}
+      }
+
+      {:ok, prompt} = Serialization.from_map(map, Prompt)
+
+      assert %Prompt{} = prompt
+      assert hd(prompt.messages).role == :user
+      assert prompt.options.model == "gpt-4o"
+    end
+
+    test "converts map to Backend Capabilities" do
+      map = %{"backend_id" => "openai", "provider" => "openai", "models" => ["gpt-4o"]}
+      {:ok, caps} = Serialization.from_map(map, Capabilities)
+
+      assert %Capabilities{} = caps
+      assert caps.backend_id == :openai
+      assert caps.models == ["gpt-4o"]
+    end
+
     test "converts nested maps to Experiment" do
       map = %{
         "id" => "test",
@@ -299,6 +393,52 @@ defmodule CrucibleIR.SerializationTest do
 
       assert decoded.id == original.id
       assert decoded.profile == original.profile
+    end
+
+    test "Backend Prompt round-trip preserves data" do
+      original = %Prompt{
+        messages: [%{role: :user, content: "Hello"}],
+        options: %Options{model: "gpt-4o", stream: true}
+      }
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, Prompt)
+
+      assert hd(decoded.messages).role == :user
+      assert decoded.options.model == "gpt-4o"
+      assert decoded.options.stream == true
+    end
+
+    test "Backend Completion round-trip preserves data" do
+      original = %Completion{
+        model: "gpt-4o",
+        choices: [
+          %{index: 0, message: %{role: :assistant, content: "Hi"}, finish_reason: :stop}
+        ]
+      }
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, Completion)
+
+      assert decoded.model == original.model
+      assert hd(decoded.choices).finish_reason == :stop
+      assert hd(decoded.choices).message.role == :assistant
+    end
+
+    test "Backend Capabilities round-trip preserves data" do
+      original = %Capabilities{
+        backend_id: :openai,
+        provider: "openai",
+        models: ["gpt-4o"],
+        supports_vision: true
+      }
+
+      json = Serialization.to_json(original)
+      {:ok, decoded} = Serialization.from_json(json, Capabilities)
+
+      assert decoded.backend_id == original.backend_id
+      assert decoded.provider == original.provider
+      assert decoded.supports_vision == true
     end
 
     test "Experiment round-trip preserves structure" do

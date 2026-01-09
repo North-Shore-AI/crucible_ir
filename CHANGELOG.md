@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-01-08
+
+### Added
+
+- **Backend IR Structs** - Universal request/response contracts for LLM backends
+  - `CrucibleIR.Backend.Prompt` - Backend input contract with chat-style messages, tool calling, and multimodal content support
+    - Supports roles: `:system`, `:user`, `:assistant`, `:tool`
+    - Multimodal content parts: text, image (URL or base64), audio, tool_result
+    - Tool definitions and tool choice directives (`:auto`, `:none`, `:required`, `%{name: string}`)
+    - Request/trace ID correlation and metadata
+  - `CrucibleIR.Backend.Options` - Generation options normalized across providers
+    - Standard parameters: `model`, `temperature`, `max_tokens`, `top_p`, `top_k`, `frequency_penalty`, `presence_penalty`, `stop`
+    - Response format: `:text`, `:json`, `:json_schema` with JSON schema support
+    - Streaming, caching (`:ephemeral`), extended thinking with budget tokens
+    - Reproducibility via `seed`, timeout configuration, and `extra` map for provider-specific options
+  - `CrucibleIR.Backend.Completion` - Backend output contract with normalized response structure
+    - Choices with index, message, and finish reason (`:stop`, `:length`, `:tool_calls`, `:content_filter`, `:error`)
+    - Extended thinking content and token tracking
+    - Usage metrics: prompt_tokens, completion_tokens, total_tokens, thinking_tokens, cached_tokens
+    - Latency tracking: `latency_ms`, `time_to_first_token_ms`
+    - Raw response preservation and metadata
+  - `CrucibleIR.Backend.Capabilities` - Backend capability discovery and limits
+    - Required: `backend_id`, `provider`
+    - Feature flags: `supports_streaming`, `supports_tools`, `supports_vision`, `supports_audio`, `supports_json_mode`, `supports_extended_thinking`, `supports_caching`
+    - Limits: `max_tokens`, `max_context_length`, `max_images_per_request`, `requests_per_minute`, `tokens_per_minute`
+    - Cost visibility: `cost_per_million_input`, `cost_per_million_output`
+
+- **Serialization Support for Backend IR**
+  - `from_map/2` and `from_json/2` for all Backend IR structs
+  - Automatic conversion of message roles, content parts, tool calls
+  - Normalization of tool choice, response format, cache control, finish reason atoms
+  - Nested Options deserialization within Prompt structs
+  - Usage and choice deserialization in Completion structs
+
+- **Validation Support for Backend IR**
+  - `validate/1` for `Prompt`, `Options`, `Completion`, `Capabilities`
+  - Message validation: role, content (string or multimodal parts)
+  - Content part validation: type must be `:text`, `:image`, `:audio`, or `:tool_result`
+  - Tool choice validation: `:auto`, `:none`, `:required`, or `%{name: string}`
+  - Options validation: response_format, cache_control, non-negative integers, stop sequences, json_schema requirement
+  - Completion validation: choices list, finish_reason enum
+  - Capabilities validation: required fields, boolean flags
+
+- **New Example**
+  - `examples/10_backend_ir_contract.exs` - Demonstrates Prompt, Completion, and Capabilities IR with JSON serialization
+
+- **Comprehensive Tests**
+  - `test/crucible_ir/backend/prompt_test.exs` - Struct defaults, JSON encoding, validation
+  - `test/crucible_ir/backend/options_test.exs` - Struct defaults, JSON encoding, validation
+  - `test/crucible_ir/backend/completion_test.exs` - Struct defaults, JSON encoding, validation
+  - `test/crucible_ir/backend/capabilities_test.exs` - Struct defaults, JSON encoding, validation
+  - Extended serialization_test.exs with Backend IR round-trip tests
+  - Extended validation_test.exs with Backend IR validation tests
+
+### Changed
+
+- Updated README with Backend IR Quick Start section and struct field reference
+- Updated `docs/20251225/current_state.md` with Backend IR documentation
+- Updated `docs/20251226/ir_boundary/IR_BOUNDARY_AND_CONTRACT.md` to include Backend IR in boundary definition
+- Updated `lib/crucible_ir.ex` module documentation with Backend IR section
+- Updated `examples/README.md` and `examples/run_all.sh` with new example
+
 ## [0.2.1] - 2025-12-26
 
 ### Added
@@ -137,7 +199,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Required fields enforced with `@enforce_keys`
 - Optional fields default to `nil` or sensible defaults
 
-[Unreleased]: https://github.com/North-Shore-AI/crucible_ir/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/North-Shore-AI/crucible_ir/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/North-Shore-AI/crucible_ir/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/North-Shore-AI/crucible_ir/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/North-Shore-AI/crucible_ir/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/North-Shore-AI/crucible_ir/compare/v0.1.0...v0.1.1

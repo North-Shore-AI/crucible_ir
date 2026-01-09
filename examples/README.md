@@ -18,6 +18,7 @@ mix run examples/06_deployment_config_and_status.exs
 mix run examples/07_feedback_storage.exs
 mix run examples/08_reliability_and_guardrails.exs
 mix run examples/09_serialization_round_trip.exs
+mix run examples/10_backend_ir_contract.exs
 ```
 
 ## Accounts and API keys
@@ -106,6 +107,7 @@ your runtime environment and reference it via `options`.
 - `examples/07_feedback_storage.exs` - Feedback configs for Postgres, S3, BigQuery, and local storage.
 - `examples/08_reliability_and_guardrails.exs` - Reliability config with ensemble, hedging, stats, fairness, and guardrails.
 - `examples/09_serialization_round_trip.exs` - JSON round-trip example using `CrucibleIR.Serialization`.
+- `examples/10_backend_ir_contract.exs` - Backend prompt, completion, and capabilities IR examples.
 
 ## Notes
 

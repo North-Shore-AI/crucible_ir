@@ -37,6 +37,10 @@ CrucibleIR (Main Module)
 | `lib/crucible_ir.ex` | Main module with convenience functions and delegations |
 | `lib/crucible_ir/experiment.ex` | Top-level experiment struct |
 | `lib/crucible_ir/backend_ref.ex` | LLM backend reference struct |
+| `lib/crucible_ir/backend/prompt.ex` | Backend prompt IR |
+| `lib/crucible_ir/backend/options.ex` | Backend generation options |
+| `lib/crucible_ir/backend/completion.ex` | Backend completion IR |
+| `lib/crucible_ir/backend/capabilities.ex` | Backend capabilities metadata |
 | `lib/crucible_ir/stage_def.ex` | Pipeline stage definition struct |
 | `lib/crucible_ir/dataset_ref.ex` | Dataset reference struct |
 | `lib/crucible_ir/output_spec.ex` | Output specification struct |
@@ -187,6 +191,30 @@ defstruct [
   sink: sink(),
   options: map() | nil
 }
+```
+
+### Backend IR (Prompt, Options, Completion, Capabilities)
+
+**Location**: `/home/home/p/g/North-Shore-AI/crucible_ir/lib/crucible_ir/backend/*`
+
+Backend request/response contracts used by LLM adapters.
+
+```elixir
+alias CrucibleIR.Backend.{Prompt, Options, Completion, Capabilities}
+
+%Prompt{
+  messages: [%{role: :user, content: "Hello"}],
+  options: %Options{model: "gpt-4o", temperature: 0.2}
+}
+
+%Completion{
+  model: "gpt-4o",
+  choices: [
+    %{index: 0, message: %{role: :assistant, content: "Hi"}, finish_reason: :stop}
+  ]
+}
+
+%Capabilities{backend_id: :openai, provider: "openai", models: ["gpt-4o"]}
 ```
 
 ### 6. CrucibleIR.Reliability.Config

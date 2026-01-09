@@ -18,6 +18,13 @@ defmodule CrucibleIR do
   - `CrucibleIR.OutputSpec` - Output specification
   - `CrucibleIR.Reliability.Config` - Container for reliability configurations
 
+  ## Backend IR
+
+  - `CrucibleIR.Backend.Prompt` - Backend input contract
+  - `CrucibleIR.Backend.Options` - Backend generation options
+  - `CrucibleIR.Backend.Completion` - Backend output contract
+  - `CrucibleIR.Backend.Capabilities` - Backend capability discovery
+
   ## Model Lifecycle (v0.2.0)
 
   - `CrucibleIR.ModelRef` - Reference to a registered model

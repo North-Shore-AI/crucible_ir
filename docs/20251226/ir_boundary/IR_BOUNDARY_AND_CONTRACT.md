@@ -26,6 +26,7 @@ Define the strict boundary for `crucible_ir` so that it remains a pure, portable
 
 `crucible_ir` defines:
 - Experiment specs (`CrucibleIR.Experiment`)
+- Backend IR (`CrucibleIR.Backend.Prompt`, `CrucibleIR.Backend.Options`, `CrucibleIR.Backend.Completion`, `CrucibleIR.Backend.Capabilities`)
 - Stage defs (`CrucibleIR.StageDef`)
 - Training configs (`CrucibleIR.Training.Config`)
 - Deployment configs (`CrucibleIR.Deployment.Config`)
@@ -57,4 +58,3 @@ It does not define *how* these are executed.
 - No runner or execution code appears in `crucible_ir`.
 - All stages and orchestration live in `crucible_framework` or domain packages.
 - IR structs remain serializable, validated, and portable across the ecosystem.
-
